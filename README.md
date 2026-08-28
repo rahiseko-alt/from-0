@@ -8,6 +8,9 @@ TODO: このリポジトリで何を作るかを記述する。
 pnpm install
 ```
 
+Node のバージョンは `.node-version` に固定しています。nvm / fnm / mise などのバージョン管理ツールを
+使っていれば自動で切り替わります。合っていない場合は `engine-strict` により install が失敗します。
+
 必要な環境変数は `.env.example` を `.env` にコピーして埋めてください（`.env` はコミットされません）。
 
 ## コマンド
