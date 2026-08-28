@@ -67,6 +67,9 @@ tsconfig.build.json    ビルド用。テストを除外する
 - **ESM のため、相対 import には拡張子 `.js` を付ける**（`./foo.ts` ではなく `./foo.js`）。TypeScript の `NodeNext` 仕様
 - **`CLAUDE.md` に「AGENTS.md に従うこと」と文章で書いても機能しない。** `@` から始まるパス記法だけが読み込みを発生させる
 - **Claude Code ではファイル編集の直後に Prettier が自動で走る**（`.claude/hooks/format.sh`）。整形済みの内容が正となるため、書いた直後に差分が出ても異常ではない
+- **`.ts` を編集すると型検査がバックグラウンドで走る**（`.claude/hooks/typecheck.sh`）。失敗した場合だけ結果が差し戻されるので、無言なら成功
+- **`Explore` と `Plan` のサブエージェントは `CLAUDE.md`（＝このファイル）を読まない**（公式仕様。他のサブエージェントは読む）。この2つに守らせたい制約は、委譲するときのプロンプトに書き直すこと
+- **worktree に入ってもフックの `${CLAUDE_PROJECT_DIR}` はメインのチェックアウトを指したまま**（公式仕様）。worktree 側のパスが必要なフックは、標準入力 JSON の `cwd` フィールドを読む
 
 ## 指示ファイルの構成
 
