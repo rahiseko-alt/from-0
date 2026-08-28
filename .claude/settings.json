@@ -5,6 +5,7 @@
       "Bash(pnpm run *)",
       "Bash(pnpm exec tsc *)",
       "Bash(pnpm exec prettier *)",
+      "Bash(pnpm exec vitest *)",
       "Bash(node --version)",
       "Bash(pnpm --version)",
       "Bash(git status *)",
@@ -23,12 +24,40 @@
       "Read(./**/*.key)",
       "Edit(./.env)",
       "Edit(./.env.*)",
+      "Edit(./dist/**)",
+      "Edit(./pnpm-lock.yaml)",
       "Bash(git push --force *)",
       "Bash(git push -f *)",
       "Bash(git reset --hard *)",
       "Bash(rm -rf *)",
       "Bash(curl *)",
       "Bash(wget *)"
+    ]
+  },
+  "respectGitignore": true,
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pnpm install",
+            "timeout": 300,
+            "statusMessage": "依存をインストールしています"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/format.sh"
+          }
+        ]
+      }
     ]
   }
 }

@@ -42,7 +42,8 @@ tsconfig.build.json    ビルド用。テストを除外する
 - **型**: `strict` 前提。`any` は使わない。やむを得ない場合は理由をコメントで残す
 - **命名**: 変数・関数は `camelCase`、型・クラスは `PascalCase`、定数は `UPPER_SNAKE_CASE`、ファイル名は `kebab-case.ts`
 - **フォーマット**: Prettier に一任し、手で整形し直さない。設定値の正本は `.prettierrc.json` と
-  `.editorconfig` であり、このファイルではない（値を二重に持つと食い違ったとき判断できなくなるため）
+  `.editorconfig` であり、このファイルではない（値を二重に持つと食い違ったとき判断できなくなるため）。
+  Claude Code では PostToolUse フックが編集直後に Prettier を自動実行する
 - **コメント**: 「何をしているか」ではなく「なぜそうしたか」を書く
 
 ## Git 運用
@@ -56,8 +57,8 @@ tsconfig.build.json    ビルド用。テストを除外する
 
 - **`git push --force` と履歴の書き換え**（Ruleset でも禁止済み）
 - **`.env` と鍵ファイル（`*.pem` `*.key`）の読み書き**。新しい環境変数は `.env.example` にキー名だけを追加する
-- **`pnpm-lock.yaml` の手編集**。`pnpm` コマンドで再生成する
-- **`dist/` の編集**。ビルド生成物なので `src/` を直す
+- **`pnpm-lock.yaml` の手編集**。`pnpm` コマンドで再生成する（`.claude/settings.json` で deny 済み）
+- **`dist/` の編集**。ビルド生成物なので `src/` を直す（同上）
 - **CI のジョブ名 `check` の改名**。Ruleset の必須チェックが外れて PR がマージ不能になる。
   改名するなら Ruleset の Require status checks も同時に更新する
 
@@ -65,6 +66,7 @@ tsconfig.build.json    ビルド用。テストを除外する
 
 - **ESM のため、相対 import には拡張子 `.js` を付ける**（`./foo.ts` ではなく `./foo.js`）。TypeScript の `NodeNext` 仕様
 - **`CLAUDE.md` に「AGENTS.md に従うこと」と文章で書いても機能しない。** `@` から始まるパス記法だけが読み込みを発生させる
+- **Claude Code ではファイル編集の直後に Prettier が自動で走る**（`.claude/hooks/format.sh`）。整形済みの内容が正となるため、書いた直後に差分が出ても異常ではない
 
 ## 指示ファイルの構成
 
