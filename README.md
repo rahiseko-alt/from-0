@@ -15,7 +15,7 @@ Claude Code と Codex で同じリポジトリを扱うための、**公式準�
 | `CLAUDE.md`             | `@AGENTS.md` の import 1行のみ。ポインタに徹する             |
 | `.claude/settings.json` | Claude Code のチーム共有設定（権限・フック）                 |
 | `.claude/hooks/`        | フックのスクリプト。自動整形・型検査・引継ぎ                 |
-| `.claude/skills/`       | スキル。`/handoff` は引継ぎの更新手順                        |
+| `.claude/skills/`       | スキル。`/checkin` `/checkout` `/handoff`                    |
 | `.mcp.json`             | MCP サーバの定義（初期状態は空）                             |
 | `.worktreeinclude`      | worktree 作成時にコピーする gitignore 済みファイル           |
 | `.gitignore`            | Node/TS・秘密情報・OS に加え、エージェントのローカルファイル |
@@ -86,7 +86,7 @@ not `AGENTS.md`" と明記されています。そこで公式が示す import �
 
 ## 拡張ポイント
 
-Claude Code には他にも拡張機構があります。スキルは `/handoff` のみ入っていて、残りは**意図的に空**です。必要になった時点で追加してください。
+Claude Code には他にも拡張機構があります。スキルは `/checkin` `/checkout` `/handoff` の3つが入っていて、残りは**意図的に空**です。必要になった時点で追加してください。
 
 | 機構                                                                               | 置き場所                 | 用途                                           |
 | ---------------------------------------------------------------------------------- | ------------------------ | ---------------------------------------------- |
