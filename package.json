@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "TODO: このリポジトリで何を作るかを記述する",
+  "description": "Claude Code と Codex で共用できる、AGENTS.md を正本とする公式準拠のリポジトリ雛形",
   "packageManager": "pnpm@10.33.0",
   "engines": {
     "node": ">=22"
