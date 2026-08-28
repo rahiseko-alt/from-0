@@ -82,3 +82,7 @@ Claude Code と Codex で同じリポジトリを扱うため、指示をこの�
 指示を追加・変更するときは、このファイルを編集してください。`CLAUDE.md` に書いてよいのは Claude Code 固有の内容だけです。
 
 個人設定は `.claude/settings.local.json` と `CLAUDE.local.md`（いずれも gitignore 済み）へ。チーム共有の設定は `.claude/settings.json` にあります。
+
+このファイルと各設定の**根拠**（どの項目が公式ドキュメント由来で、どれが選択の結果か）は
+`docs/decisions.md` に分けてあります。設定を変更する前に一度目を通してください。
+コンテキストを消費しないよう、意図的に `@` で import していません。
