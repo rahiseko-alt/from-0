@@ -78,6 +78,29 @@
 | `format.sh` / `typecheck.sh` の**実装**          | **判断** | `jq` に依存せず `node` で解析、拡張子フィルタ、成功時は無出力。いずれも私が書いた                                     |
 | 型検査を `check` ではなく `typecheck` にする     | **判断** | Vitest の起動分だけ遅くなるため。テストまで走らせたい場合は差し替えてよい                                             |
 
+## 3-b. セッション間の引継ぎ
+
+既存実装3つ（[392fyc/claude-handoff](https://github.com/392fyc/claude-handoff)、
+[shihchengwei-lab/claude-code-session-kit](https://github.com/shihchengwei-lab/claude-code-session-kit)、
+[who96/claude-code-context-handoff](https://github.com/who96/claude-code-context-handoff)）を調べ、
+読み込み側は1つ目、書き込み側は2つ目の方式を採った。
+
+| 項目                                                 | 区分     | 根拠 / 理由                                                                                                           |
+| ---------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
+| SessionStart の stdout はコンテキストに入る          | **公式** | [hooks](https://code.claude.com/docs/en/hooks) — SessionStart は例外的に plain-text stdout がコンテキストに追加される |
+| SessionEnd はモデルを呼べず、予算が既定 1.5 秒       | **公式** | 同上 — "SessionEnd hooks share a 1.5-second budget"。timeout を上げると最大 60 秒まで拡張できる                       |
+| Stop は毎ターン発火し、exit 2 で会話を継続させられる | **公式** | 同上 — "Stop fires once per turn"、"exit code 2 prevents Claude from stopping"                                        |
+| `<session-handoff>` タグで囲んで注入する             | **判断** | 392fyc/claude-handoff の方式。引継ぎ文書と通常のファイル内容を混同させないため                                        |
+| Stop フックで差し戻す                                | **判断** | session-kit の方式。スキルは必ず発火しないため、確実性が要るならフックしかない                                        |
+| 差し戻しは**1セッションに1回だけ**                   | **判断** | Stop は毎ターン発火するため、無条件に止めると作業にならない。マーカーで抑止している                                   |
+| `docs/handoff.md` を**コミット対象**にする           | **判断** | gitignore にするとクラウドセッション（毎回 fresh clone）で必ず失われるため。複数人で編集すると競合しうる点は許容した  |
+| SessionEnd では機械的な事実だけ記録する              | **判断** | モデルを呼べないため文章は書けない。ブランチ・HEAD・変更ファイルはシェルだけで取れる                                  |
+
+**この仕組みの限界を明記しておく。** 「セッション終了時にモデルへ引継ぎを書かせる」手段は公式に存在しない。
+SessionEnd はモデルを呼べず、Stop はターン単位でしか発火しない。したがって確実に得られるのは
+「1セッションに1回の差し戻し」と「終了時の機械的な記録」までで、文章の鮮度は保証されない。
+区切りごとに `/handoff` を実行するのが最も確実である。
+
 ## 4. 技術スタック
 
 **この節はすべて判断です。** Claude Code 公式ドキュメントはスタックについて何も規定していません。

@@ -18,6 +18,17 @@
 - **作業報告は「何をどうしたか」だけ書く。** 経緯・背景・検討過程は聞かれるまで書かない
 - 態度と言葉遣いは常に丁寧に保つ
 
+## セッション間の引継ぎ
+
+`docs/handoff.md` が引継ぎ文書です。**このファイルだけ読めば再開できる**状態を保ってください。
+
+- セッション開始時、フックがこの内容を自動でコンテキストへ注入します
+- 未コミットの変更が残っていると、Stop フックが**1セッションに1回だけ**更新を求めます
+- セッション終了時、フックがブランチと HEAD と変更ファイルを末尾に自動記録します
+- 明示的に更新するときは `/handoff` を実行してください
+
+**更新したらコミットしてください。** コミットしないと次のセッションに残りません。
+
 ## 根拠の記録
 
 `AGENTS.md` と `.claude/settings.json` を変更する前に、**`docs/decisions.md` を読んでください。**
@@ -53,7 +64,10 @@ pnpm run format   # Prettier で整形
 AGENTS.md              全エージェント共通の指示（このファイル・正本）
 CLAUDE.md              @AGENTS.md の import のみ。中身は書かない
 .claude/settings.json  Claude Code の権限設定（チーム共有）
+.claude/skills/        スキル。/handoff は引継ぎの更新手順
 .github/workflows/     CI。ジョブ名 check は Ruleset の必須チェック名と一致する
+docs/handoff.md        セッション間の引継ぎ。開始時に自動で読み込まれる
+docs/decisions.md      各設定の根拠。公式由来か選択の結果かを区別した記録
 src/                   アプリケーションコードとテスト（*.test.ts）
 tsconfig.json          型チェック用。テストを含む全ファイルが対象
 tsconfig.build.json    ビルド用。テストを除外する

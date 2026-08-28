@@ -41,6 +41,7 @@ tmp/
 CLAUDE.local.md
 .claude/agent-memory-local/
 .claude/worktrees/
+.claude/.handoff-state/
 
 # Codex
 .codex/
