@@ -10,7 +10,9 @@
 
 ```bash
 pnpm install
-pnpm run check    # format:check + typecheck。コミット前に必ず通す
+pnpm run check    # format:check + typecheck + test。コミット前に必ず通す
+pnpm run test     # Vitest（単体。監視は test:watch）
+pnpm run build    # tsc で dist/ に出力
 pnpm run format   # Prettier で整形
 ```
 

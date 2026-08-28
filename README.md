@@ -18,8 +18,8 @@ Claude Code と Codex で同じリポジトリを扱うための、**公式準�
 
 ### 開発基盤
 
-Node 22 / TypeScript 5 strict / pnpm / ESM。Prettier と EditorConfig で整形を統一し、
-GitHub Actions で `pnpm run check` を自動実行します。
+Node 22 / TypeScript 5 strict / pnpm / ESM。テストは Vitest、整形は Prettier と EditorConfig。
+GitHub Actions で整形検査・型チェック・テスト・ビルドを自動実行します。
 
 ## なぜこの構成なのか
 
@@ -50,7 +50,7 @@ GitHub の **Use this template** から新しいリポジトリを作り、以�
 - [ ] `AGENTS.md` の `**目的**` の行
 - [ ] `AGENTS.md` の「落とし穴」に、そのプロジェクト固有の注意点を追加
 - [ ] `.claude/settings.json` の権限を、使うコマンドに合わせて調整
-- [ ] `src/index.ts` を実際のコードに置き換え
+- [ ] `src/index.ts` と `src/index.test.ts` を実際のコードとテストに置き換え
 
 スタックを変える場合（Next.js を入れる等）は `package.json` / `tsconfig.json` /
 `.github/workflows/ci.yml` を差し替えてください。指示ファイルの構成はそのまま使えます。
@@ -68,12 +68,15 @@ Node のバージョンは `.node-version` に固定しています。nvm / fnm 
 
 ## コマンド
 
-| コマンド                | 内容                         |
-| ----------------------- | ---------------------------- |
-| `pnpm run typecheck`    | 型チェック                   |
-| `pnpm run format`       | Prettier で整形              |
-| `pnpm run format:check` | 整形差分の検査               |
-| `pnpm run check`        | 上記のチェックをまとめて実行 |
+| コマンド                | 内容                                           |
+| ----------------------- | ---------------------------------------------- |
+| `pnpm run check`        | 整形検査 + 型チェック + テスト（コミット前に） |
+| `pnpm run test`         | Vitest でテストを実行                          |
+| `pnpm run test:watch`   | Vitest を監視モードで起動                      |
+| `pnpm run build`        | `tsc` で `dist/` に出力                        |
+| `pnpm run typecheck`    | 型チェックのみ                                 |
+| `pnpm run format`       | Prettier で整形                                |
+| `pnpm run format:check` | 整形差分の検査のみ                             |
 
 ## 参照した公式ドキュメント
 
