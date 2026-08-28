@@ -50,15 +50,6 @@
             "statusMessage": "依存をインストールしています"
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/handoff-load.sh",
-            "statusMessage": "引継ぎを読み込んでいます"
-          }
-        ]
       }
     ],
     "Stop": [

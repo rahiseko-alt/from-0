@@ -83,18 +83,21 @@
 既存実装3つ（[392fyc/claude-handoff](https://github.com/392fyc/claude-handoff)、
 [shihchengwei-lab/claude-code-session-kit](https://github.com/shihchengwei-lab/claude-code-session-kit)、
 [who96/claude-code-context-handoff](https://github.com/who96/claude-code-context-handoff)）を調べ、
-読み込み側は1つ目、書き込み側は2つ目の方式を採った。
+書き込み側は2つ目の方式を採った。読み込み側は3つとも SessionStart フックを使っているが、
+この雛形では**フックではなく `@` import** にした（理由は下表）。
 
-| 項目                                                 | 区分     | 根拠 / 理由                                                                                                           |
-| ---------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
-| SessionStart の stdout はコンテキストに入る          | **公式** | [hooks](https://code.claude.com/docs/en/hooks) — SessionStart は例外的に plain-text stdout がコンテキストに追加される |
-| SessionEnd はモデルを呼べず、予算が既定 1.5 秒       | **公式** | 同上 — "SessionEnd hooks share a 1.5-second budget"。timeout を上げると最大 60 秒まで拡張できる                       |
-| Stop は毎ターン発火し、exit 2 で会話を継続させられる | **公式** | 同上 — "Stop fires once per turn"、"exit code 2 prevents Claude from stopping"                                        |
-| `<session-handoff>` タグで囲んで注入する             | **判断** | 392fyc/claude-handoff の方式。引継ぎ文書と通常のファイル内容を混同させないため                                        |
-| Stop フックで差し戻す                                | **判断** | session-kit の方式。スキルは必ず発火しないため、確実性が要るならフックしかない                                        |
-| 差し戻しは**1セッションに1回だけ**                   | **判断** | Stop は毎ターン発火するため、無条件に止めると作業にならない。マーカーで抑止している                                   |
-| `docs/handoff.md` を**コミット対象**にする           | **判断** | gitignore にするとクラウドセッション（毎回 fresh clone）で必ず失われるため。複数人で編集すると競合しうる点は許容した  |
-| SessionEnd では機械的な事実だけ記録する              | **判断** | モデルを呼べないため文章は書けない。ブランチ・HEAD・変更ファイルはシェルだけで取れる                                  |
+| 項目                                                   | 区分     | 根拠 / 理由                                                                                                                                                    |
+| ------------------------------------------------------ | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| import は再帰的に展開される（最大4段）                 | **公式** | [memory](https://code.claude.com/docs/en/memory) — "Imported files can recursively import other files"                                                         |
+| プロジェクト直下の指示はコンパクション後も再注入される | **公式** | 同上 — "Project-root CLAUDE.md survives compaction"                                                                                                            |
+| プロジェクトのフックは workspace trust を要求する      | **公式** | [hooks](https://code.claude.com/docs/en/hooks) — "Project-level hooks follow workspace trust rules"                                                            |
+| SessionEnd はモデルを呼べず、予算が既定 1.5 秒         | **公式** | 同上 — "SessionEnd hooks share a 1.5-second budget"。timeout を上げると最大 60 秒まで拡張できる                                                                |
+| Stop は毎ターン発火し、exit 2 で会話を継続させられる   | **公式** | 同上 — "Stop fires once per turn"、"exit code 2 prevents Claude from stopping"                                                                                 |
+| 読み込みは SessionStart フックではなく `@` import      | **判断** | フックは trust 承認まで動かず、コンパクション後の再注入もない。import は両方を満たす。あわせて文章でも読むよう指示している（Codex は import を展開しないため） |
+| Stop フックで差し戻す                                  | **判断** | session-kit の方式。スキルは必ず発火しないため、確実性が要るならフックしかない                                                                                 |
+| 差し戻しは**1セッションに1回だけ**                     | **判断** | Stop は毎ターン発火するため、無条件に止めると作業にならない。マーカーで抑止している                                                                            |
+| `docs/handoff.md` を**コミット対象**にする             | **判断** | gitignore にするとクラウドセッション（毎回 fresh clone）で必ず失われるため。複数人で編集すると競合しうる点は許容した                                           |
+| SessionEnd では機械的な事実だけ記録する                | **判断** | モデルを呼べないため文章は書けない。ブランチ・HEAD・変更ファイルはシェルだけで取れる                                                                           |
 
 **この仕組みの限界を明記しておく。** 「セッション終了時にモデルへ引継ぎを書かせる」手段は公式に存在しない。
 SessionEnd はモデルを呼べず、Stop はターン単位でしか発火しない。したがって確実に得られるのは
