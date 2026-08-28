@@ -20,7 +20,7 @@ Claude Code と Codex で同じリポジトリを扱うための、**公式準�
 | `.worktreeinclude`      | worktree 作成時にコピーする gitignore 済みファイル           |
 | `.gitignore`            | Node/TS・秘密情報・OS に加え、エージェントのローカルファイル |
 | `docs/decisions.md`     | 各項目の根拠。公式由来か選択の結果かを区別した記録           |
-| `docs/handoff.md`       | セッション間の引継ぎ。開始時に自動で読み込まれる             |
+| `docs/handoff.md`       | セッション間の引継ぎ。`AGENTS.md` が import している         |
 
 ### 開発基盤
 
@@ -68,7 +68,7 @@ not `AGENTS.md`" と明記されています。そこで公式が示す import �
 | 整形が適用されること           | PostToolUse フックが編集直後に Prettier を実行                  |
 | 型が壊れていないこと           | PostToolUse フックが編集後に `tsc` を非同期実行し、失敗だけ返す |
 | 依存が入っていること           | SessionStart フックが `pnpm install` を実行                     |
-| 引継ぎが読まれること           | SessionStart フックが `docs/handoff.md` をコンテキストへ注入    |
+| 引継ぎが読まれること           | `AGENTS.md` の `@docs/handoff.md` import。trust に依存しない    |
 | 引継ぎが書かれること           | Stop フックが1セッションに1回、未記録の変更があれば更新を求める |
 | 秘密情報を読ませない           | `.claude/settings.json` の `permissions.deny`                   |
 | 生成物とロックファイルの手編集 | 同上（`dist/` と `pnpm-lock.yaml` を deny）                     |
