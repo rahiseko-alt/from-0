@@ -59,32 +59,99 @@ not `AGENTS.md`" と明記されています。そこで公式が示す import �
 
 そのため、守られないと困るものは指示ではなく仕組み側に置いています。
 
-| 守りたいこと                   | 仕組み                                            |
-| ------------------------------ | ------------------------------------------------- |
-| Node のバージョン              | `.npmrc` の `engine-strict` で install が失敗する |
-| 整形が適用されること           | PostToolUse フックが編集直後に Prettier を実行    |
-| 依存が入っていること           | SessionStart フックが `pnpm install` を実行       |
-| 秘密情報を読ませない           | `.claude/settings.json` の `permissions.deny`     |
-| 生成物とロックファイルの手編集 | 同上（`dist/` と `pnpm-lock.yaml` を deny）       |
-| CI 通過とレビュー経由の変更    | GitHub の Ruleset（`main` 直 push 禁止・CI 必須） |
+| 守りたいこと                   | 仕組み                                                          |
+| ------------------------------ | --------------------------------------------------------------- |
+| Node のバージョン              | `.npmrc` の `engine-strict` で install が失敗する               |
+| 整形が適用されること           | PostToolUse フックが編集直後に Prettier を実行                  |
+| 型が壊れていないこと           | PostToolUse フックが編集後に `tsc` を非同期実行し、失敗だけ返す |
+| 依存が入っていること           | SessionStart フックが `pnpm install` を実行                     |
+| 秘密情報を読ませない           | `.claude/settings.json` の `permissions.deny`                   |
+| 生成物とロックファイルの手編集 | 同上（`dist/` と `pnpm-lock.yaml` を deny）                     |
+| CI 通過とレビュー経由の変更    | GitHub の Ruleset（`main` 直 push 禁止・CI 必須）               |
+
+`AGENTS.md` の「`strict` 前提・`any` を使わない」は指示にすぎません。型検査をフックにすることで、
+違反は必ず次のターンで Claude に差し戻されます。
+
+> **`allow` ルールは workspace trust を承認するまで効きません。** 各自が**このフォルダ自体**を信頼
+> するまで（親フォルダの信頼では足りない）、`.claude/settings.json` の `permissions.allow` は適用
+> されず、毎回確認を求められます。`claude -p` や SDK では信頼ダイアログ自体が出ないため `allow` は
+> 適用されず、stderr に `this workspace has not been trusted` が出ます。
+> **`deny` と `ask` は信頼の有無に関係なく最初から効く**ので、安全性は信頼の状態に依存しません。
+> 参考: [What runs before you trust a folder](https://code.claude.com/docs/en/permissions#what-runs-before-you-trust-a-folder)
 
 ## 拡張ポイント
 
 Claude Code には他にも拡張機構があります。この雛形では**意図的に空**にしてあり、必要になった時点で追加してください。
 
-| 機構                                                                               | 置き場所          | 用途                                           |
-| ---------------------------------------------------------------------------------- | ----------------- | ---------------------------------------------- |
-| [スキル](https://code.claude.com/docs/en/skills)                                   | `.claude/skills/` | 手順やドメイン知識。必要なときだけ読み込まれる |
-| [サブエージェント](https://code.claude.com/docs/en/sub-agents)                     | `.claude/agents/` | 別コンテキストで動く専門エージェント           |
-| [ルール](https://code.claude.com/docs/en/memory#organize-rules-with-claude/rules/) | `.claude/rules/`  | パス単位で読み込む指示（`paths:` frontmatter） |
-| [MCP](https://code.claude.com/docs/en/mcp)                                         | `.mcp.json`       | 外部ツールとの接続                             |
+| 機構                                                                               | 置き場所                 | 用途                                           |
+| ---------------------------------------------------------------------------------- | ------------------------ | ---------------------------------------------- |
+| [スキル](https://code.claude.com/docs/en/skills)                                   | `.claude/skills/`        | 手順やドメイン知識。必要なときだけ読み込まれる |
+| [サブエージェント](https://code.claude.com/docs/en/sub-agents)                     | `.claude/agents/`        | 別コンテキストで動く専門エージェント           |
+| [ルール](https://code.claude.com/docs/en/memory#organize-rules-with-claude/rules/) | `.claude/rules/`         | パス単位で読み込む指示（`paths:` frontmatter） |
+| [MCP](https://code.claude.com/docs/en/mcp)                                         | `.mcp.json`              | 外部ツールとの接続                             |
+| [プラグイン](https://code.claude.com/docs/en/discover-plugins)                     | 各自の `/plugin install` | LSP・MCP・スキルをまとめて導入                 |
 
 > **注意**: `.claude/` 配下の指示は **Claude Code しか読みません**。Codex からは見えないため、
 > 両ツールで守らせたい内容は必ず `AGENTS.md` に書いてください。ここに書いてよいのは、
 > Claude Code 固有の手順や、指示ではない仕組み（フック・権限）です。
 
+> **`.claude/commands/` は作らないでください。** 公式が「Custom commands have been merged into
+> skills」と明記しています。同名なら skills が優先され、commands 側は `name` と `paths` の
+> フロントマターを無視し、bare mode では読み込まれません。`/名前` で呼びたい場合も
+> `.claude/skills/<名前>/SKILL.md` を作れば同じことができます。
+
 公式は「CLAUDE.md の一節が事実ではなく手順に育ったら、スキルに移す」ことを勧めています。
 `AGENTS.md` が 200 行に近づいてきたら、手順をスキルへ切り出す合図です。
+
+### 導入を検討する価値があるもの
+
+雛形の既定には入れていませんが、公式が勧めていて効果が明確なものです。いずれも**前提が増える**ため、
+利用者が判断できるよう前提を明記します。
+
+**TypeScript の code intelligence（`typescript-lsp`）**
+
+公式が TypeScript に名指しで勧めているプラグインです。編集直後に言語サーバが型エラーや未解決 import を
+返すため、Claude が同じターンで気づいて直せます。各自のマシンに `typescript-language-server`
+バイナリが必要で、**プラグインは入れてくれません**。バイナリを入れたうえで
+`/plugin install typescript-lsp@claude-plugins-official` を実行してください。
+バイナリ前提のため `.claude/settings.json` の既定には入れていません（未インストールのまま配ると
+全員に「not installed」エラーが出ます）。
+
+**セキュリティレビュー（`security-guidance`）**
+
+Claude が書いたコードを3層（編集ごとのパターン照合・ターン終了時の差分レビュー・commit/push 時の
+エージェント的レビュー）で点検します。リポジトリを clone した全員とクラウドセッションに効かせる
+公式の方法は `.claude/settings.json` への宣言です。
+
+```json
+{ "enabledPlugins": { "security-guidance@claude-plugins-official": true } }
+```
+
+既定に入れていない理由は2つです。**Node 専用のこの雛形に Python 3.10 以上と pip とネットワークの
+前提が増える**こと（初回に `~/.claude/security/` へ venv を作る）、そして**モデル利用コストが増える**
+こと（ターン終了時と commit 時のレビューは既定で Claude Opus 4.7 を呼びます）。編集ごとの
+パターン照合だけはモデルを呼ばず無料なので、`ENABLE_CODE_SECURITY_REVIEW=0` でその層だけ残せます。
+全プランで利用可能です。
+
+**Bash のサンドボックス**
+
+`permissions.deny` は Claude の組み込みファイルツールと、Claude Code が認識する `cat` などの
+Bash コマンドには効きますが、**スクリプト経由の間接アクセスには効きません**（`node -e` で `.env` を
+読むなど）。OS レベルで止めるにはサンドボックスが要ります。
+
+```json
+{
+  "sandbox": {
+    "enabled": true,
+    "network": { "allowedDomains": ["registry.npmjs.org"] },
+    "filesystem": { "allowWrite": ["~/.local/share/pnpm"] }
+  }
+}
+```
+
+既定に入れていない理由は、**ネイティブ Windows で動かない**こと（macOS / Linux / WSL2 のみ）と、
+`allowWrite` に指定すべき pnpm ストアのパスが環境依存であること（`pnpm store path` で確認）です。
+壊れた既定を全リポジトリに配らないため、選択制にしています。
 
 ## この雛形の使い方
 
@@ -97,9 +164,32 @@ GitHub の **Use this template** から新しいリポジトリを作り、以�
 - [ ] `.claude/settings.json` の権限とフックを、使うコマンドに合わせて調整
 - [ ] `src/index.ts` と `src/index.test.ts` を実際のコードとテストに置き換え
 - [ ] GitHub 側の設定（Ruleset で `main` 保護と CI 必須、Allow auto-merge、head ブランチ自動削除）
+- [ ] 各自が一度 `claude` を対話モードで起動し、**workspace trust を承認する**
+      （承認するまで `permissions.allow` は効かず、毎回確認を求められます）
+- [ ] アプリの起動手順が決まったら `/run-skill-generator` を1回実行し、生成された
+      `.claude/skills/run-<名前>/` をコミットする（`/run` と `/verify` が起動方法を再発見せずに済む）
 
 スタックを変える場合（Next.js を入れる等）は `package.json` / `tsconfig.json` /
 `.github/workflows/ci.yml` を差し替えてください。指示ファイルの構成はそのまま使えます。
+
+モノレポ化する場合は [Monorepos and large repos](https://code.claude.com/docs/en/large-codebases)
+を参照してください。`.claude/settings.json` は**親ディレクトリから継承されません**。worktree の中では
+リポジトリルートの `.claude/settings.json` が読まれるので、権限とフックはルート側にも置きます。
+`AGENTS.md` を正本にする構成は維持できますが、パッケージ固有の規約は `packages/*/CLAUDE.md` か
+`.claude/rules/` の `paths:` に分けることになります。
+
+### Claude Code on the web で使う
+
+**リポジトリ側の準備は不要です。** クラウドセッションは fresh clone から始まりますが、
+`CLAUDE.md` / `.claude/settings.json` / `.mcp.json` はコミット済みなのでそのまま届き、
+SessionStart フックが `pnpm install` を実行します。Node 22 と pnpm はクラウド VM に
+プリインストールされているため、**setup script も不要**です。
+
+claude.ai/code で GitHub を接続し、環境を作るだけで動きます。ただしネットワークを **None** に
+すると `pnpm install` が npm レジストリに届かず失敗するので、Trusted を選んでください。
+
+なお `~/.claude/` 配下の個人設定と、`claude mcp add` の user/local スコープはクラウドに**届きません**。
+チーム全員とクラウドに効かせたい設定は、必ずリポジトリにコミットしてください。
 
 ## セットアップ
 
