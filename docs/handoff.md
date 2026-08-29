@@ -16,109 +16,70 @@
 
 ## いま何をしているか
 
-前段（外部評価3提案への対応）は完了・マージ済み。今回さらに、ユーザーが用意した
-`TEST_POLICY.md`（重大度ゲート方式のテスト判定手順）を `docs/test-policy.md` として
-リポジトリに実装した。まだ commit / push / PR していない（このコミットで行う）。
-
-**完全に完成したわけではない。** 残る未解決は2点、どちらも私には解決手段が無い：
-
-- claim 2（Ruleset）は `[曖昧]` のまま。API から読む手段が無く、ユーザーが GitHub UI で
-  確認しないと確定しない
-- `handoff-stamp.sh`（SessionEnd）だけは実際にセッションを終了させないと harness 経由で
-  発火させられない。手動 JSON テストのみで確認済み（ロジックは検証済みの `handoff-check.sh`
-  と同型）
+雛形の整備は継続中。直近は `AGENTS.md` の分量削減に対応した。まだ commit / push / PR
+していない（このコミットで行う）。
 
 ## 完了したこと
 
-PR #1〜#21 をすべてマージ済み。
+PR #1〜#23 をすべてマージ済み。うち主なもの:
 
-- **`docs/test-policy.md` の実装**（今回のセッション、未 push） — ユーザーがチャットに
-  貼った TEST_POLICY.md をそのまま実装。項目番号（001〜100）は Markdown の自動リスト整形で
-  ズレるため、コードブロック（```text）で固定した（最初 `1. 2. 3.` 形式で書いたら Prettier に
-  ゼロ埋めを剥がされ、`FAILED_GATE: 003` 等の参照と対応しなくなるバグを作った。修正後、
-  `grep` でグループごとに 001〜100 が重複・欠落なく揃っていることを確認済み）。
-  `AGENTS.md` に「テストで見つけた問題への対処」節を追加して参照させ（`@` import はしない。
-  毎セッション読み込むとコンテキストを消費するため。理由は `docs/decisions.md` の
-  「1. 指示ファイルの構成」にある 200 行方針と同じ）、ディレクトリ表にも追記した。
-  根拠は `docs/decisions.md` に新設した「7. テスト方針（test-policy.md）」に記録。
-  ISTQB・ISO/IEC/IEEE 29119・OWASP Risk Rating・Quality Gate/Exit Criteria の各公式情報を
-  WebFetch/WebSearch で調べ、内容が矛盾しないことを確認済み（「最初の NO で停止」等、
-  公式より厳格な独自ルールである旨も明記）。この根拠追加に伴い decisions.md の章番号が
-  1つずつ繰り下がった（旧7章「調査の範囲と限界」→8章。`docs/handoff.md` 内の参照も修正済み）
-- **PR #20〜#21** — チェックアウトの締めと、`handoff-stamp.sh`（SessionEnd）が main 上で
-  発火した際の自動記録フッター更新
-- 以下は前段（このセッションの前半）で完了した外部評価3提案への対応
-
-- **提案1（worktree hook の `cwd` 問題）** — 事実確認したところバグだった。4つの hook
-  スクリプト（`format.sh` / `typecheck.sh` / `handoff-check.sh` / `handoff-stamp.sh`）が
-  全て `${CLAUDE_PROJECT_DIR}` に `cd` しており、`AGENTS.md` 自身が書いていた「worktree では
-  標準入力 JSON の `cwd` を読む」を実装していなかった。**PR #15 で修正・マージ済み**
-- **E2E 検証** — `EnterWorktree` で実際に worktree に入り、`.ts` を編集して PostToolUse hook
-  を実地に発火させて確認した。`format.sh` は正常動作。`typecheck.sh` は worktree に
-  `node_modules` が無いために黙って no-op になる**追加バグ**が発覚（cwd 直下しか見ていなかった。
-  `pnpm run typecheck` 自体は祖先ディレクトリの `node_modules` を辿って解決できるのに、
-  ガード側がそれを考慮していなかった）。cwd から祖先ディレクトリを辿って `node_modules` を
-  探すよう修正し、worktree 内でわざと型エラーを仕込んで hook が正しく検出することを再確認した
-  （PR #18 でマージ済み）。続けて `handoff-check.sh`（Stop フック）も、worktree を意図的に
-  dirty にしてターンを終え、実際の Stop フック発火で検証した。マーカーファイルが worktree 自身の
-  `.claude/.handoff-state/` に作られ、`${CLAUDE_PROJECT_DIR}`（メインチェックアウト）ではなく
-  `cwd` に対して正しく動くことを確認した。`handoff-stamp.sh`（SessionEnd）だけは、実際に
-  セッションを終了させないと発火させられないため、サンプル JSON の手動テストのみで確認済み
-- **提案2（GitHub Ruleset）** — API から直接読む手段が無い（`gh` CLI 非搭載、ruleset 取得
-  ツールなし、`curl` は deny 済み）。間接証拠として、このセッションで出した PR #10〜#19 は
-  全て `merge_pull_request` がレビュー承認待ちで弾かれず通っている。レビュー必須なら失敗する
-  はずなので、**現状すでに「レビュー承認0人」相当である可能性が高い**が断定はできない。
-  `[曖昧]` — ユーザーが GitHub の Settings → Rules → Rulesets 画面で確認すれば確定する
-- **提案3（handoff の main 強制マージ方針）** — ユーザーと合意し、方針を修正した。
-  「main へ必ずマージするのは引継ぎ文であり、実際のコード変更は未完了なら push 済みの
-  branch/worktree に残してよい」という形に変更。理由: push 済みのコミットは origin に残るため
-  消えない（消えるのは push していないコミットだけ）。次セッションが自動で読むのは main の
-  `docs/handoff.md` だけなので、必須なのは引継ぎ文が main に載ることであり、worktree 越しの
-  継続開発を妨げるべきではない。`AGENTS.md`・`docs/handoff.md` 前文・`docs/decisions.md`・
-  `.claude/skills/checkout/SKILL.md` を書き換えた（このコミットで main にマージ）
-- **PR #14** — 上記3提案を引継ぎに記録（このセッションの前段）
+- **worktree hook の修正**（PR #15, #18, #19）— 4つの hook（`format.sh` / `typecheck.sh` /
+  `handoff-check.sh` / `handoff-stamp.sh`）が `${CLAUDE_PROJECT_DIR}`（メインチェックアウト）に
+  固定されており、worktree では動かないバグを修正。`EnterWorktree` で実地検証し、
+  `typecheck.sh` の `node_modules` 探索が cwd 直下しか見ておらず worktree で no-op になる
+  追加バグも見つけて修正した
+- **handoff の main マージ方針の見直し**（PR #16）— 「main へ必ずマージするのは引継ぎ文であり、
+  実際のコード変更は未完了なら push 済みの branch/worktree に残してよい」に変更。
+  push 済みのコミットは origin に残るため消えない
+- **`docs/test-policy.md` の実装**（PR #22, #23）— ユーザー用意の TEST_POLICY.md（重大度ゲート
+  方式のテスト判定手順）をそのまま実装。項目番号 001〜100 は Markdown の自動リスト整形で
+  ズレるため、コードブロック（```text）で固定した。ISTQB・ISO/IEC/IEEE 29119・OWASP Risk
+  Rating・Quality Gate/Exit Criteria と矛盾しないことを確認し `docs/decisions.md` の
+  「7. テスト方針」に記録
+- **`AGENTS.md` の分量削減**（今回、未 push）— 「説明過多で AGENTS.md の役割を超えている」との
+  指摘を受け、[best-practices](https://code.claude.com/docs/en/best-practices) の Include /
+  Exclude 表と「削ると挙動が変わるか」の基準で全面的に見直した。157行→86行。ディレクトリ一覧・
+  設計理由・hooks の仕組み説明・Claude Code/Codex の読み込み機構の解説など、挙動を変えない
+  記述を削除（README.md と decisions.md が元々カバーしていたので情報は失っていない）。
+  ブランチ命名規則やコミット規約は公式の Include 項目（"Repository etiquette"）に該当するため
+  残した。`docs/decisions.md`・`README.md` も整合するよう更新した
 
 ## 次にやること
 
-1. **`Use this template` で新規リポジトリを1本作り、実地検証する。**（PR #13 時点から
-   積み残していたタスク。まだ未着手）確認する項目:
+1. **`Use this template` で新規リポジトリを1本作り、実地検証する。**（PR #13 時点からの
+   積み残しタスク。まだ未着手）確認する項目:
    - `pnpm install` → `pnpm run check` → `pnpm run build` が通る
-   - `/context` で `CLAUDE.md` が Memory files に出る（`@AGENTS.md` と `@docs/handoff.md` が展開される）
+   - `/context` で `CLAUDE.md` が Memory files に出る
    - `.ts` を編集すると Prettier と `tsc` のフックが走る
    - workspace trust を承認する前後で `permissions.allow` の効き方が変わる
-   - worktree hook の E2E 検証はこのセッションで実施済みなので、ここでは再確認不要
-2. 提案2（Ruleset）は `[曖昧]` のままなので、ユーザーが GitHub UI で実際の設定
-   （Require pull request / 必須レビュー人数 / Require status checks）を確認し、`AGENTS.md` の
-   記述と食い違いがあれば知らせてほしい
-3. `handoff-stamp.sh`（SessionEnd）の worktree での動作は、JSON を直接パイプした手動テストの
-   みで確認済み。実際にセッションを終了させないと harness 経由では発火させられないため、
-   これ以上の実地検証は次にセッションを終える際に自然に行われる（優先度は低い。ロジックは
-   `handoff-check.sh` と同型で、こちらは既に harness 経由で検証済み）
+   - 削減後の `AGENTS.md` を実際に読み込ませ、`/context` のトークン数を確認する
+2. GitHub Ruleset の実態は `[曖昧]` のまま。API から直接読む手段がなく、間接証拠（このセッションの
+   PR がレビュー承認待ちで弾かれず通っている）から「レビュー承認0人相当」と推測しているだけ。
+   ユーザーが GitHub の Settings → Rules → Rulesets 画面で確認し、`AGENTS.md` の記述と
+   食い違いがあれば知らせてほしい
+3. `handoff-stamp.sh`（SessionEnd）は実際にセッションを終了させないと harness 経由で発火
+   させられない。手動 JSON テストのみで確認済み（ロジックは検証済みの `handoff-check.sh` と
+   同型なので優先度は低い）
 
 ## 注意点
 
 - **Prettier は Markdown の順序付きリスト（`1. 2. 3.`）を自動で振り直す。** ゼロ埋め ID
   （`001` 等）を他所から参照する文書では、リスト記法を使うと参照が壊れる。コードブロック
-  （```text）で固定するか、リストにしないこと。`docs/test-policy.md` 実装時に一度壊して気づいた
+  （```text）で固定するか、リストにしないこと
 - **`.claude/` 配下は「保護パス」で、`permissions.allow` では事前承認できない。**
-  公式ドキュメント（permission-modes の Protected paths 節）に明記。`Edit(.claude/**)` を
-  allow に入れても効果がなく、`.claude/settings.json` の編集は毎回確認を求められる。
-  止めるレバーは `bypassPermissions` モードのみ（deny ルールも含め全プロンプトを止める）。
-  `.claude/settings.local.json`（gitignore 済み）に書いても、次セッションのコンテナには残らず、
-  テンプレにも伝播しない。ユーザーはこれを理解した上で **採用しないことを選択済み**
+  公式ドキュメント（permission-modes の Protected paths 節）に明記。止めるレバーは
+  `bypassPermissions` モードのみ（deny ルールも含め全プロンプトを止める）。
+  `.claude/settings.local.json`（gitignore 済み）に書いても次セッションには残らないため、
+  ユーザーは採用を見送り済み
 - **CI のジョブ名 `check` は Ruleset の必須チェック名と一致している。** 改名すると必須チェックが
-  外れて PR がマージ不能になる。改名するなら Ruleset の Require status checks も同時に更新する
+  外れて PR がマージ不能になる
 - **`main` への直接 push は Ruleset で禁止されている。** 作業はブランチと PR 経由
 - **`Bash(rm *)` と `Bash(git reset --hard *)` が deny されている。** ファイル削除は `git clean`
   や `git rm`、ブランチ同期は `git merge --ff-only` を使う
-- **`permissions.allow` に広いパターン（`Bash(git branch *)` など）を足すときは、
-  その中に破壊的な部分集合が混じっていないか確認すること。** PR #11 の原因はこれ
+- **`permissions.allow` に広いパターンを足すときは、破壊的な部分集合が混じっていないか
+  確認すること。** `Bash(git branch *)` が `git branch -D` まで無確認で通してしまった件が原因
 - **hook のロジックを「サンプル JSON を手動でパイプする」テストだけで済ませない。**
-  `typecheck.sh` の `node_modules` チェックは、手動テストでは常にメインチェックアウトから
-  実行していたため見逃していた。`EnterWorktree` で実際に worktree に入って初めて発覚した
-- **`main` へ必ずマージするのは「引継ぎ文」であり、コード全体ではない。** 未完了のコード変更は
-  push 済みの branch/worktree に残してよい（提案3、このセッションで方針化・実装済み）。
-  push 済みのコミットは origin に残るため消えない。消えるのは push していないコミットだけ
+  `EnterWorktree` で実際に worktree に入って初めて発覚したバグがあった
 - **セッション終了時にモデルへ引継ぎを書かせる公式手段は存在しない。** `SessionEnd` はモデルを
   呼べず予算も 1.5 秒、`Stop` はターン単位でしか発火しない。確実なのは `/checkout` の明示実行
 - **`.claude/` 配下は Codex から見えない。** 両ツールで守らせたい内容は `AGENTS.md` に書く
@@ -129,9 +90,9 @@ PR #1〜#21 をすべてマージ済み。
 
 ## セッション終了時点の状態（自動記録）
 
-- 記録時刻: 2026-08-29 04:39 UTC
+- 記録時刻: 2026-08-29 10:09 UTC
 - ブランチ: `main`
-- HEAD: `173fcd0`
+- HEAD: `facb029`
 - 未コミットの変更:
 
 ```
