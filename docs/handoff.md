@@ -65,11 +65,7 @@ GitHub 側は Ruleset・Template repository・Allow auto-merge・head ブラン�
 
 ## セッション終了時点の状態（自動記録）
 
-- 記録時刻: 2026-08-29 00:20 UTC
+- 記録時刻: 2026-08-29 01:03 UTC
 - ブランチ: `claude/checkin-67y0sw`
-- HEAD: `4fb64cf`
-- 未コミットの変更:
-
-```
-M docs/handoff.md
-```
+- HEAD: `eaa0d94`
+- 未コミットの変更: なし

@@ -36,8 +36,10 @@ BRANCH="$branch" HEAD_SHA="$head" CHANGED="$changed" STAMP="$stamp" node -e '
     "- 記録時刻: " + process.env.STAMP + "\n" +
     "- ブランチ: `" + process.env.BRANCH + "`\n" +
     "- HEAD: `" + process.env.HEAD_SHA + "`\n" +
-    "- 未コミットの変更: " +
-    (changed ? "\n\n```\n" + changed + "\n```\n" : "なし\n");
+    // 行末に空白を残すと Prettier の format:check が落ち、CI が赤くなる。
+    // ラベル側には空白を付けず、"なし" の側だけ区切りの空白を持たせる。
+    "- 未コミットの変更:" +
+    (changed ? "\n\n```\n" + changed + "\n```\n" : " なし\n");
 
   const i = text.indexOf(MARK);
   const next = (i === -1 ? text.trimEnd() + "\n\n" : text.slice(0, i)) + block;

@@ -62,6 +62,8 @@
 | `Bash(rm *)`（`rm -rf *` ではなく）               | **公式** | 同上 — 最初の `*` より前は文字通り一致するため、`rm -fr` を取りこぼす                                                           |
 | `curl`/`wget` を deny し WebFetch に許可を与える  | **公式** | 同上 — この2つを一組で推奨している                                                                                              |
 | allow / deny に**何を入れるか**の選定             | **判断** | 記法は公式、中身は私の選択。使うコマンドに合わせて各プロジェクトで調整してよい                                                  |
+| 読み取り専用の git を allow に入れる              | **判断** | `show` `fetch` `branch` `rev-parse` `ls` は状態を壊さない。許可を求める回数が多すぎたため追加した。減らしたければ個別に外す     |
+| `git push` を ask から allow に移す               | **判断** | `--force` と `-f` は deny 済みで deny が allow に優先し、`main` 直 push は Ruleset が止める。二重の確認より許可の回数を優先した |
 | `WebFetch` を `code.claude.com` に限定            | **判断** | この雛形が公式ドキュメントを参照する前提のため。必要なドメインは追加してよい                                                    |
 | `respectGitignore: true`                          | **判断** | 公式の分類では「Interface and terminal」であり、セキュリティ設定ではない。害がないので残しているだけ                            |
 | サンドボックスを既定で有効化**しない**            | **判断** | 公式は defense-in-depth として推奨している。ネイティブ Windows で動かず `allowWrite` が環境依存のため、壊れた既定を配らない選択 |
