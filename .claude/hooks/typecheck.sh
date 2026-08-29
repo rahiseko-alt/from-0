@@ -52,8 +52,21 @@ cwd=$(
 
 cd "${cwd:-${CLAUDE_PROJECT_DIR:-.}}" || exit 0
 
-# 依存が未インストールの場合は黙って抜ける（SessionStart フックが入れる）
-[ -d node_modules ] || exit 0
+# 依存が未インストールの場合は黙って抜ける（SessionStart フックが入れる）。
+# worktree には node_modules 自体が無いのが通常だが、pnpm はディレクトリを
+# 上へたどってメインチェックアウトの node_modules を見つけて解決できる
+# （実地検証で確認済み）。そのため cwd 直下だけでなく、祖先ディレクトリも辿って探す。
+dir="$PWD"
+found=0
+while :; do
+  if [ -d "$dir/node_modules" ]; then
+    found=1
+    break
+  fi
+  [ "$dir" = "/" ] && break
+  dir=$(dirname "$dir")
+done
+[ "$found" -eq 1 ] || exit 0
 
 if result=$(pnpm run typecheck 2>&1); then
   exit 0

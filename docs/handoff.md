@@ -19,10 +19,10 @@
 ユーザーから外部評価（総合84〜88/100、Claude Code 中心運用を前提とした再評価）を受けて出た
 3件の改善提案に、このセッションで対応した。未マージの PR とオープンな作業はありません。
 
-ただし **完全に完成したわけではない**。claim 2（Ruleset）は未確認のまま `[曖昧]` で止まっており、
-claim 1（worktree hook）の修正も worktree での end-to-end 検証はしていない。さらに、PR #13
-時点から積み残していた「Use this template での実地検証」タスクを、今回の対応に集中する過程で
-一度 handoff から落としてしまっていた（このコミットで復元）。
+claim 1（worktree hook）は `EnterWorktree` で実際に worktree に入り end-to-end 検証済み。
+その過程で `typecheck.sh` の追加バグ（後述）が見つかり、修正済み。
+
+ただし **完全に完成したわけではない**。claim 2（Ruleset）は未確認のまま `[曖昧]` で止まっている。
 
 ## 完了したこと
 
@@ -31,10 +31,14 @@ PR #1〜#15 をすべてマージ済み。今回のセッションで進めた�
 - **提案1（worktree hook の `cwd` 問題）** — 事実確認したところバグだった。4つの hook
   スクリプト（`format.sh` / `typecheck.sh` / `handoff-check.sh` / `handoff-stamp.sh`）が
   全て `${CLAUDE_PROJECT_DIR}` に `cd` しており、`AGENTS.md` 自身が書いていた「worktree では
-  標準入力 JSON の `cwd` を読む」を実装していなかった。特に `typecheck.sh` と
-  `handoff-check.sh`/`handoff-stamp.sh` は実害があった（worktree セッションでメイン
-  チェックアウト側に対して動いてしまう）。**PR #15 で修正・マージ済み**。サンプル JSON を
-  渡して4スクリプトとも手動実行で動作確認済み
+  標準入力 JSON の `cwd` を読む」を実装していなかった。**PR #15 で修正・マージ済み**
+- **E2E 検証** — `EnterWorktree` で実際に worktree に入り、`.ts` を編集して PostToolUse hook
+  を実地に発火させて確認した。`format.sh` は正常動作。`typecheck.sh` は worktree に
+  `node_modules` が無いために黙って no-op になる**追加バグ**が発覚（cwd 直下しか見ていなかった。
+  `pnpm run typecheck` 自体は祖先ディレクトリの `node_modules` を辿って解決できるのに、
+  ガード側がそれを考慮していなかった）。cwd から祖先ディレクトリを辿って `node_modules` を
+  探すよう修正し、worktree 内でわざと型エラーを仕込んで hook が正しく検出することを再確認した
+  （このコミットでマージ）
 - **提案2（GitHub Ruleset）** — API から直接読む手段が無い（`gh` CLI 非搭載、ruleset 取得
   ツールなし、`curl` は deny 済み）。間接証拠として、このセッションで出した PR #10〜#15 は
   全て `merge_pull_request` がレビュー承認待ちで弾かれず通っている。レビュー必須なら失敗する
@@ -52,19 +56,18 @@ PR #1〜#15 をすべてマージ済み。今回のセッションで進めた�
 ## 次にやること
 
 1. **`Use this template` で新規リポジトリを1本作り、実地検証する。**（PR #13 時点から
-   積み残していたタスク。今回の3提案対応に集中する過程で、一度引継ぎから落としてしまった。
-   確認する項目:
+   積み残していたタスク。まだ未着手）確認する項目:
    - `pnpm install` → `pnpm run check` → `pnpm run build` が通る
    - `/context` で `CLAUDE.md` が Memory files に出る（`@AGENTS.md` と `@docs/handoff.md` が展開される）
    - `.ts` を編集すると Prettier と `tsc` のフックが走る
    - workspace trust を承認する前後で `permissions.allow` の効き方が変わる
-   - **`EnterWorktree` で worktree に入り、hook（特に `typecheck.sh` と
-     `handoff-check.sh`/`handoff-stamp.sh`）が worktree 側のディレクトリに対して動くことを
-     確認する。**PR #15 の修正はサンプル JSON を直接パイプした手動テストのみで、実際の
-     worktree セッションでの end-to-end 検証はまだ済んでいない
+   - worktree hook の E2E 検証はこのセッションで実施済みなので、ここでは再確認不要
 2. 提案2（Ruleset）は `[曖昧]` のままなので、ユーザーが GitHub UI で実際の設定
    （Require pull request / 必須レビュー人数 / Require status checks）を確認し、`AGENTS.md` の
    記述と食い違いがあれば知らせてほしい
+3. `handoff-check.sh`/`handoff-stamp.sh` の worktree での動作は、JSON を直接パイプした
+   手動テストのみで確認済み（`typecheck.sh` のように harness 経由の実地検証はまだ）。
+   優先度は低い（ロジックは `typecheck.sh` と同型で、`node_modules` に依存しない）
 
 ## 注意点
 
@@ -81,6 +84,9 @@ PR #1〜#15 をすべてマージ済み。今回のセッションで進めた�
   や `git rm`、ブランチ同期は `git merge --ff-only` を使う
 - **`permissions.allow` に広いパターン（`Bash(git branch *)` など）を足すときは、
   その中に破壊的な部分集合が混じっていないか確認すること。** PR #11 の原因はこれ
+- **hook のロジックを「サンプル JSON を手動でパイプする」テストだけで済ませない。**
+  `typecheck.sh` の `node_modules` チェックは、手動テストでは常にメインチェックアウトから
+  実行していたため見逃していた。`EnterWorktree` で実際に worktree に入って初めて発覚した
 - **`main` へ必ずマージするのは「引継ぎ文」であり、コード全体ではない。** 未完了のコード変更は
   push 済みの branch/worktree に残してよい（提案3、このセッションで方針化・実装済み）。
   push 済みのコミットは origin に残るため消えない。消えるのは push していないコミットだけ
