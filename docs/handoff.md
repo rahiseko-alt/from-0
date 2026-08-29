@@ -14,50 +14,51 @@
 
 ## いま何をしているか
 
-雛形の整備は完了済み。`main` は `850911a`（PR #12 まで反映）。未マージの PR とオープンな
-作業はありません。次の作業は未着手です。
+雛形の整備は完了済み。`main` は `bbaa4ef`（PR #13 まで反映）。未マージの PR とオープンな
+作業はありません。
+
+直前に、ユーザーから外部評価（総合84〜88/100、Claude Code 中心運用を前提とした再評価）を受け取り、
+3件の改善提案が出ている。**まだ事実確認・着手していない**：
+
+1. worktree hook の `cwd` 問題（AGENTS.md の記述と実装が食い違っている疑い）
+2. GitHub Ruleset を「PR 必須・レビュー承認0人・CI 必須」という実態に文書側を合わせる、または逆
+3. handoff の「必ず main へマージ」方針を、worktree 越しの継続作業を許すよう緩めるか検討
 
 ## 完了したこと
 
-PR #1〜#12 をすべてマージ済み。今回のセッションで進めたのは PR #10〜#12。
+PR #1〜#13 をすべてマージ済み。
 
-- **PR #10** — 引継ぎに書かれていた `main` の SHA のずれ（`2320fe2` → 実際は `4fb64cf`）を修正。
-  修正コミットの過程で `SessionEnd` フック（`handoff-stamp.sh`）が出力する行末空白が
-  Prettier の `format:check` を落としていたことが分かり、フック自体も修正した
-- **PR #11** — PR #10 で `permissions.allow` に追加した `Bash(git branch *)` が
-  `git branch -d`/`-D`（削除）まで無確認で通してしまう問題を修正。allow を狭めるのではなく、
-  `rm`/`git reset --hard` と同じ形で破壊的な部分集合だけを `permissions.deny` に追加した
-  （deny は allow より優先されるため）
-- **PR #12** — PR 監視で毎回確認を求められていた `mcp__Claude_Code_Remote__*`
-  （`subscribe_pr_activity` / `unsubscribe_pr_activity` / `create_trigger` / `update_trigger` /
-  `delete_trigger` / `fire_trigger` / `send_later`）を `permissions.allow` に追加。
-  コードやリポジトリの状態を変更しないツールに限定した
-- 検証は毎回 `pnpm run check`（format:check / typecheck / test）が通ることを確認済み
-
-各 PR とも squash マージ。`docs/decisions.md` の「2. 権限」節に、今回追加した判断
-（deny の優先順位、読み取り専用 git の allow、PR 監視ツールの allow）を理由つきで記載済み。
-
-GitHub 側は Ruleset・Template repository・Allow auto-merge・head ブランチ自動削除が有効。
+- **PR #10〜#12**（詳細は git log 参照）— 引継ぎ SHA の修正、`git branch -d`/`-D` の deny 追加、
+  PR 監視系 `mcp__Claude_Code_Remote__*` の allow 追加
+- **PR #13** — 上記3件の引継ぎ記録
+- **`bypassPermissions` モードの検討** — 「使い捨てコンテナだから危険操作のリスクは低い」という
+  ユーザーの主張を受けて調査。`.claude/` 配下は公式に「保護パス」で `permissions.allow` では
+  事前承認できないことを確認（`.claude/settings.local.json` に `defaultMode: bypassPermissions`
+  を書く案を提示）。ただしこの案は **gitignore 済みのため次セッションのコンテナには残らず、
+  テンプレにも伝播しない** ことを説明した上で、ユーザーが **見送りを選択**（採用しないこと自体が結論）
 
 ## 次にやること
 
-**Use this template で新規リポジトリを1本作り、実地検証する。**（未着手のまま持ち越し） 確認する項目:
+上記「いま何をしているか」の3提案について、まず事実確認する。
 
-1. `pnpm install` → `pnpm run check` → `pnpm run build` が通る
-2. `/context` で `CLAUDE.md` が Memory files に出る（`@AGENTS.md` と `@docs/handoff.md` が展開される）
-3. `.ts` を編集すると Prettier と `tsc` のフックが走る
-4. workspace trust を承認する前後で `permissions.allow` の効き方が変わる
+1. `.claude/hooks/` の各スクリプトを開き、`${CLAUDE_PROJECT_DIR}` を使っている箇所と、
+   worktree 対応のため標準入力 JSON の `cwd` を使うべき箇所を特定する
+2. GitHub の Ruleset 設定（Require pull request、必須レビュー人数、Require status checks）を
+   実際に確認し、`AGENTS.md` の記述（`main` 直 push 禁止・CI 必須）と一致しているか照合する
+3. `docs/handoff.md` 冒頭の「更新したら main へマージしてください」という強制と、
+   `.claude/skills/checkout` の運用を、未完了タスクを branch/worktree に残して次セッションへ
+   渡すケースを許容する形に緩めるべきか、ユーザーと合意する
 
-雛形自体に未着手の課題はありません。
+いずれも調査・設計判断が要るため、着手前にユーザーへ報告すること。
 
 ## 注意点
 
 - **`.claude/` 配下は「保護パス」で、`permissions.allow` では事前承認できない。**
   公式ドキュメント（permission-modes の Protected paths 節）に明記。`Edit(.claude/**)` を
   allow に入れても効果がなく、`.claude/settings.json` の編集は毎回確認を求められる。
-  これを止めるレバーは `bypassPermissions` モードのみ（deny ルールも含め全プロンプトを止める）。
-  今回ユーザーに提案したが、**「テンプレにもリポジトリにも永続しない」ことを説明した上で見送った**
-  （`.claude/settings.local.json` は gitignore 済みで、コンテナ破棄後は次セッションに残らない）
+  止めるレバーは `bypassPermissions` モードのみ（deny ルールも含め全プロンプトを止める）。
+  `.claude/settings.local.json`（gitignore 済み）に書いても、次セッションのコンテナには残らず、
+  テンプレにも伝播しない。ユーザーはこれを理解した上で **採用しないことを選択済み**
 - **CI のジョブ名 `check` は Ruleset の必須チェック名と一致している。** 改名すると必須チェックが
   外れて PR がマージ不能になる。改名するなら Ruleset の Require status checks も同時に更新する
 - **`main` への直接 push は Ruleset で禁止されている。** 作業はブランチと PR 経由
@@ -66,7 +67,7 @@ GitHub 側は Ruleset・Template repository・Allow auto-merge・head ブラン�
 - **`permissions.allow` に広いパターン（`Bash(git branch *)` など）を足すときは、
   その中に破壊的な部分集合が混じっていないか確認すること。** PR #11 の原因はこれ
 - **引継ぎは `main` にマージしないと失われる。** コンテナ破棄後、次のセッションは `main` を
-  新規クローンするため、作業ブランチのコミットは残らない
+  新規クローンするため、作業ブランチのコミットは残らない（この方針自体の見直しが上記提案3）
 - **セッション終了時にモデルへ引継ぎを書かせる公式手段は存在しない。** `SessionEnd` はモデルを
   呼べず予算も 1.5 秒、`Stop` はターン単位でしか発火しない。確実なのは `/checkout` の明示実行
 - **`.claude/` 配下は Codex から見えない。** 両ツールで守らせたい内容は `AGENTS.md` に書く
@@ -77,7 +78,7 @@ GitHub 側は Ruleset・Template repository・Allow auto-merge・head ブラン�
 
 ## セッション終了時点の状態（自動記録）
 
-- 記録時刻: 2026-08-29 01:57 UTC
+- 記録時刻: 2026-08-29 02:20 UTC
 - ブランチ: `main`
-- HEAD: `850911a`
+- HEAD: `bbaa4ef`
 - 未コミットの変更: なし
