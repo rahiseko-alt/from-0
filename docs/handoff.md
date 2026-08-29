@@ -7,49 +7,51 @@
 - セッション終了時、`.claude/hooks/handoff-stamp.sh` が末尾に機械的な事実を追記します
 - 作業開始時は `/checkin`、区切りでは `/handoff`、終了時は `/checkout` を実行してください
 
-更新したら **`main` へマージしてください**。コンテナは終了後に破棄され、次のセッションは
-`main` を新規クローンするため、作業ブランチにコミットしただけでは失われます。
+**このファイル（引継ぎ文）を更新したら、必ず `main` へマージしてください。** 次のセッションは
+`main` を新規クローンし、この docs/handoff.md しか自動では読みません。実際のコード変更は、
+未完了なら push 済みの branch/worktree に残したままで構いません（push していれば origin に
+残るため消えません）。その場合は「次にやること」に、どの branch を見ればよいか書いてください。
 
 ---
 
 ## いま何をしているか
 
-雛形の整備は完了済み。`main` は `bbaa4ef`（PR #13 まで反映）。未マージの PR とオープンな
-作業はありません。
-
-直前に、ユーザーから外部評価（総合84〜88/100、Claude Code 中心運用を前提とした再評価）を受け取り、
-3件の改善提案が出ている。**まだ事実確認・着手していない**：
-
-1. worktree hook の `cwd` 問題（AGENTS.md の記述と実装が食い違っている疑い）
-2. GitHub Ruleset を「PR 必須・レビュー承認0人・CI 必須」という実態に文書側を合わせる、または逆
-3. handoff の「必ず main へマージ」方針を、worktree 越しの継続作業を許すよう緩めるか検討
+雛形の整備は完了済み。ユーザーから外部評価（総合84〜88/100、Claude Code 中心運用を前提とした
+再評価）を受けて出た3件の改善提案に、このセッションで対応した。3件とも決着済みで、
+未マージの PR とオープンな作業はありません。
 
 ## 完了したこと
 
-PR #1〜#13 をすべてマージ済み。
+PR #1〜#15 をすべてマージ済み。今回のセッションで進めたのは PR #14〜#15、および3提案への対応。
 
-- **PR #10〜#12**（詳細は git log 参照）— 引継ぎ SHA の修正、`git branch -d`/`-D` の deny 追加、
-  PR 監視系 `mcp__Claude_Code_Remote__*` の allow 追加
-- **PR #13** — 上記3件の引継ぎ記録
-- **`bypassPermissions` モードの検討** — 「使い捨てコンテナだから危険操作のリスクは低い」という
-  ユーザーの主張を受けて調査。`.claude/` 配下は公式に「保護パス」で `permissions.allow` では
-  事前承認できないことを確認（`.claude/settings.local.json` に `defaultMode: bypassPermissions`
-  を書く案を提示）。ただしこの案は **gitignore 済みのため次セッションのコンテナには残らず、
-  テンプレにも伝播しない** ことを説明した上で、ユーザーが **見送りを選択**（採用しないこと自体が結論）
+- **提案1（worktree hook の `cwd` 問題）** — 事実確認したところバグだった。4つの hook
+  スクリプト（`format.sh` / `typecheck.sh` / `handoff-check.sh` / `handoff-stamp.sh`）が
+  全て `${CLAUDE_PROJECT_DIR}` に `cd` しており、`AGENTS.md` 自身が書いていた「worktree では
+  標準入力 JSON の `cwd` を読む」を実装していなかった。特に `typecheck.sh` と
+  `handoff-check.sh`/`handoff-stamp.sh` は実害があった（worktree セッションでメイン
+  チェックアウト側に対して動いてしまう）。**PR #15 で修正・マージ済み**。サンプル JSON を
+  渡して4スクリプトとも手動実行で動作確認済み
+- **提案2（GitHub Ruleset）** — API から直接読む手段が無い（`gh` CLI 非搭載、ruleset 取得
+  ツールなし、`curl` は deny 済み）。間接証拠として、このセッションで出した PR #10〜#15 は
+  全て `merge_pull_request` がレビュー承認待ちで弾かれず通っている。レビュー必須なら失敗する
+  はずなので、**現状すでに「レビュー承認0人」相当である可能性が高い**が断定はできない。
+  `[曖昧]` — ユーザーが GitHub の Settings → Rules → Rulesets 画面で確認すれば確定する
+- **提案3（handoff の main 強制マージ方針）** — ユーザーと合意し、方針を修正した。
+  「main へ必ずマージするのは引継ぎ文であり、実際のコード変更は未完了なら push 済みの
+  branch/worktree に残してよい」という形に変更。理由: push 済みのコミットは origin に残るため
+  消えない（消えるのは push していないコミットだけ）。次セッションが自動で読むのは main の
+  `docs/handoff.md` だけなので、必須なのは引継ぎ文が main に載ることであり、worktree 越しの
+  継続開発を妨げるべきではない。`AGENTS.md`・`docs/handoff.md` 前文・`docs/decisions.md`・
+  `.claude/skills/checkout/SKILL.md` を書き換えた（このコミットで main にマージ）
+- **PR #14** — 上記3提案を引継ぎに記録（このセッションの前段）
 
 ## 次にやること
 
-上記「いま何をしているか」の3提案について、まず事実確認する。
+雛形自体に未着手の課題はありません。次の一手は特にありません。
 
-1. `.claude/hooks/` の各スクリプトを開き、`${CLAUDE_PROJECT_DIR}` を使っている箇所と、
-   worktree 対応のため標準入力 JSON の `cwd` を使うべき箇所を特定する
-2. GitHub の Ruleset 設定（Require pull request、必須レビュー人数、Require status checks）を
-   実際に確認し、`AGENTS.md` の記述（`main` 直 push 禁止・CI 必須）と一致しているか照合する
-3. `docs/handoff.md` 冒頭の「更新したら main へマージしてください」という強制と、
-   `.claude/skills/checkout` の運用を、未完了タスクを branch/worktree に残して次セッションへ
-   渡すケースを許容する形に緩めるべきか、ユーザーと合意する
-
-いずれも調査・設計判断が要るため、着手前にユーザーへ報告すること。
+強いて言えば、提案2（Ruleset）は `[曖昧]` のままなので、ユーザーが GitHub UI で実際の設定
+（Require pull request / 必須レビュー人数 / Require status checks）を確認し、`AGENTS.md` の
+記述と食い違いがあれば知らせてもらうとよい。
 
 ## 注意点
 
@@ -66,8 +68,9 @@ PR #1〜#13 をすべてマージ済み。
   や `git rm`、ブランチ同期は `git merge --ff-only` を使う
 - **`permissions.allow` に広いパターン（`Bash(git branch *)` など）を足すときは、
   その中に破壊的な部分集合が混じっていないか確認すること。** PR #11 の原因はこれ
-- **引継ぎは `main` にマージしないと失われる。** コンテナ破棄後、次のセッションは `main` を
-  新規クローンするため、作業ブランチのコミットは残らない（この方針自体の見直しが上記提案3）
+- **`main` へ必ずマージするのは「引継ぎ文」であり、コード全体ではない。** 未完了のコード変更は
+  push 済みの branch/worktree に残してよい（提案3、このセッションで方針化・実装済み）。
+  push 済みのコミットは origin に残るため消えない。消えるのは push していないコミットだけ
 - **セッション終了時にモデルへ引継ぎを書かせる公式手段は存在しない。** `SessionEnd` はモデルを
   呼べず予算も 1.5 秒、`Stop` はターン単位でしか発火しない。確実なのは `/checkout` の明示実行
 - **`.claude/` 配下は Codex から見えない。** 両ツールで守らせたい内容は `AGENTS.md` に書く
