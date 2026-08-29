@@ -34,7 +34,23 @@ case "$file_path" in
 *) exit 0 ;;
 esac
 
-cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
+# worktree に入っていても ${CLAUDE_PROJECT_DIR} はメインのチェックアウトを指したままなので、
+# 標準入力 JSON の cwd（Claude が実際に作業しているディレクトリ）を優先する。
+cwd=$(
+  printf '%s' "$event" | node -e '
+    let s = "";
+    process.stdin.on("data", (d) => (s += d));
+    process.stdin.on("end", () => {
+      try {
+        process.stdout.write(JSON.parse(s)?.cwd ?? "");
+      } catch {
+        process.stdout.write("");
+      }
+    });
+  '
+) || exit 0
+
+cd "${cwd:-${CLAUDE_PROJECT_DIR:-.}}" || exit 0
 
 # 依存が未インストールの場合は黙って抜ける（SessionStart フックが入れる）
 [ -d node_modules ] || exit 0

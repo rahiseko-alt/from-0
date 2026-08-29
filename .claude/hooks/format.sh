@@ -36,7 +36,23 @@ case "$file_path" in
 *) exit 0 ;;
 esac
 
-cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
+# worktree に入っていても ${CLAUDE_PROJECT_DIR} はメインのチェックアウトを指したままなので、
+# 標準入力 JSON の cwd（Claude が実際に作業しているディレクトリ）を優先する。
+cwd=$(
+  printf '%s' "$event" | node -e '
+    let s = "";
+    process.stdin.on("data", (d) => (s += d));
+    process.stdin.on("end", () => {
+      try {
+        process.stdout.write(JSON.parse(s)?.cwd ?? "");
+      } catch {
+        process.stdout.write("");
+      }
+    });
+  '
+) || exit 0
+
+cd "${cwd:-${CLAUDE_PROJECT_DIR:-.}}" || exit 0
 
 # 整形に失敗しても編集自体は成立しているので、フックは成功扱いで終える
 pnpm exec prettier --write "$file_path" >/dev/null 2>&1 || true

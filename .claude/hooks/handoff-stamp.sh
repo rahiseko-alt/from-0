@@ -8,7 +8,25 @@
 
 set -uo pipefail
 
-cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
+event=$(cat)
+
+# worktree に入っていても ${CLAUDE_PROJECT_DIR} はメインのチェックアウトを指したままなので、
+# 標準入力 JSON の cwd（Claude が実際に作業しているディレクトリ）を優先する。
+cwd=$(
+  printf '%s' "$event" | node -e '
+    let s = "";
+    process.stdin.on("data", (d) => (s += d));
+    process.stdin.on("end", () => {
+      try {
+        process.stdout.write(JSON.parse(s)?.cwd ?? "");
+      } catch {
+        process.stdout.write("");
+      }
+    });
+  '
+) || exit 0
+
+cd "${cwd:-${CLAUDE_PROJECT_DIR:-.}}" || exit 0
 git rev-parse --git-dir >/dev/null 2>&1 || exit 0
 [ -f docs/handoff.md ] || exit 0
 
