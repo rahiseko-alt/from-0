@@ -38,7 +38,11 @@ PR #1〜#15 をすべてマージ済み。今回のセッションで進めた�
   `pnpm run typecheck` 自体は祖先ディレクトリの `node_modules` を辿って解決できるのに、
   ガード側がそれを考慮していなかった）。cwd から祖先ディレクトリを辿って `node_modules` を
   探すよう修正し、worktree 内でわざと型エラーを仕込んで hook が正しく検出することを再確認した
-  （このコミットでマージ）
+  （PR #18 でマージ済み）。続けて `handoff-check.sh`（Stop フック）も、worktree を意図的に
+  dirty にしてターンを終え、実際の Stop フック発火で検証した。マーカーファイルが worktree 自身の
+  `.claude/.handoff-state/` に作られ、`${CLAUDE_PROJECT_DIR}`（メインチェックアウト）ではなく
+  `cwd` に対して正しく動くことを確認した。`handoff-stamp.sh`（SessionEnd）だけは、実際に
+  セッションを終了させないと発火させられないため、サンプル JSON の手動テストのみで確認済み
 - **提案2（GitHub Ruleset）** — API から直接読む手段が無い（`gh` CLI 非搭載、ruleset 取得
   ツールなし、`curl` は deny 済み）。間接証拠として、このセッションで出した PR #10〜#15 は
   全て `merge_pull_request` がレビュー承認待ちで弾かれず通っている。レビュー必須なら失敗する
@@ -65,9 +69,10 @@ PR #1〜#15 をすべてマージ済み。今回のセッションで進めた�
 2. 提案2（Ruleset）は `[曖昧]` のままなので、ユーザーが GitHub UI で実際の設定
    （Require pull request / 必須レビュー人数 / Require status checks）を確認し、`AGENTS.md` の
    記述と食い違いがあれば知らせてほしい
-3. `handoff-check.sh`/`handoff-stamp.sh` の worktree での動作は、JSON を直接パイプした
-   手動テストのみで確認済み（`typecheck.sh` のように harness 経由の実地検証はまだ）。
-   優先度は低い（ロジックは `typecheck.sh` と同型で、`node_modules` に依存しない）
+3. `handoff-stamp.sh`（SessionEnd）の worktree での動作は、JSON を直接パイプした手動テストの
+   みで確認済み。実際にセッションを終了させないと harness 経由では発火させられないため、
+   これ以上の実地検証は次にセッションを終える際に自然に行われる（優先度は低い。ロジックは
+   `handoff-check.sh` と同型で、こちらは既に harness 経由で検証済み）
 
 ## 注意点
 
