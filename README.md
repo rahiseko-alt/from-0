@@ -9,23 +9,23 @@ Claude Code と Codex で同じリポジトリを扱うための、**公式準�
 
 ### 指示ファイル
 
-| ファイル                | 役割                                                         |
-| ----------------------- | ------------------------------------------------------------ |
-| `AGENTS.md`             | 全エージェント共通の指示。**唯一の正本**                     |
-| `CLAUDE.md`             | `@AGENTS.md` の import 1行のみ。ポインタに徹する             |
-| `.claude/settings.json` | Claude Code のチーム共有設定（権限・フック）                 |
-| `.claude/hooks/`        | フックのスクリプト。自動整形・型検査・引継ぎ                 |
-| `.claude/skills/`       | スキル。`/checkin` `/checkout` `/handoff`                    |
-| `.claude/agents/`       | サブエージェント。`failure-reviewer`（失敗台帳の整理専用）   |
-| `.mcp.json`             | MCP サーバの定義（初期状態は空）                             |
-| `.worktreeinclude`      | worktree 作成時にコピーする gitignore 済みファイル           |
-| `.gitignore`            | Node/TS・秘密情報・OS に加え、エージェントのローカルファイル |
-| `.gitattributes`        | 台帳ファイルの union merge 設定                              |
-| `docs/decisions.md`     | 各項目の根拠。公式由来か選択の結果かを区別した記録           |
-| `docs/handoff.md`       | セッション間の引継ぎ。`AGENTS.md` が import している         |
-| `docs/test-policy.md`   | テストで見つけた問題を重大度順に処理するためのゲート手順     |
-| `docs/failure-log.md`   | 失敗台帳。書きっぱなしでよく、条件を満たすまで読まない       |
-| `docs/neglected-log.md` | 放置台帳。大計画のゴール到達時だけ読む                       |
+| ファイル                     | 役割                                                                             |
+| ---------------------------- | -------------------------------------------------------------------------------- |
+| `AGENTS.md`                  | 全エージェント共通の指示。**唯一の正本**                                         |
+| `CLAUDE.md`                  | `@AGENTS.md` の import 1行のみ。ポインタに徹する                                 |
+| `.claude/settings.json`      | Claude Code のチーム共有設定（権限・フック）                                     |
+| `.claude/hooks/`             | フックのスクリプト。自動整形・型検査・引継ぎ                                     |
+| `.claude/skills/`            | スキル。`/checkin` `/checkout` `/handoff`                                        |
+| `.claude/agents/`            | サブエージェント。`failure-reviewer`（失敗台帳の整理専用）                       |
+| `.mcp.json`                  | MCP サーバの定義（初期状態は空）                                                 |
+| `.worktreeinclude`           | worktree 作成時にコピーする gitignore 済みファイル                               |
+| `.gitignore`                 | Node/TS・秘密情報・OS に加え、エージェントのローカルファイル                     |
+| `.gitattributes`             | 台帳ファイルの union merge 設定                                                  |
+| `docs/decisions.md`          | 各項目の根拠。公式由来か選択の結果かを区別した記録                               |
+| `docs/handoff.md`            | セッション間の引継ぎ。`AGENTS.md` が import している                             |
+| `docs/test-policy.md`        | テストで見つけた問題を重大度順に処理するためのゲート手順                         |
+| `docs/failure-action-log.md` | 失敗行動台帳。行動（結果ではない）を書きっぱなしでよく、条件を満たすまで読まない |
+| `docs/neglected-log.md`      | 放置台帳。大計画のゴール到達時だけ読む                                           |
 
 ### 開発基盤
 
