@@ -16,13 +16,9 @@
 
 ## いま何をしているか
 
-ユーザーから外部評価（総合84〜88/100、Claude Code 中心運用を前提とした再評価）を受けて出た
-3件の改善提案への対応は完了し、`main` にマージ済み。`main` は `d32dead`。未マージの PR と
-オープンな作業はありません。
-
-claim 1（worktree hook）は `EnterWorktree` で実際に worktree に入り end-to-end 検証済み
-（`format.sh`・`typecheck.sh`・`handoff-check.sh` の3つ）。claim 3（handoff の main 強制
-マージ方針）も方針化・実装・マージ済み。
+前段（外部評価3提案への対応）は完了・マージ済み。今回さらに、ユーザーが用意した
+`TEST_POLICY.md`（重大度ゲート方式のテスト判定手順）を `docs/test-policy.md` として
+リポジトリに実装した。まだ commit / push / PR していない（このコミットで行う）。
 
 **完全に完成したわけではない。** 残る未解決は2点、どちらも私には解決手段が無い：
 
@@ -34,7 +30,24 @@ claim 1（worktree hook）は `EnterWorktree` で実際に worktree に入り en
 
 ## 完了したこと
 
-PR #1〜#19 をすべてマージ済み。今回のセッションで進めたのは PR #14〜#19、および3提案への対応。
+PR #1〜#21 をすべてマージ済み。
+
+- **`docs/test-policy.md` の実装**（今回のセッション、未 push） — ユーザーがチャットに
+  貼った TEST_POLICY.md をそのまま実装。項目番号（001〜100）は Markdown の自動リスト整形で
+  ズレるため、コードブロック（```text）で固定した（最初 `1. 2. 3.` 形式で書いたら Prettier に
+  ゼロ埋めを剥がされ、`FAILED_GATE: 003` 等の参照と対応しなくなるバグを作った。修正後、
+  `grep` でグループごとに 001〜100 が重複・欠落なく揃っていることを確認済み）。
+  `AGENTS.md` に「テストで見つけた問題への対処」節を追加して参照させ（`@` import はしない。
+  毎セッション読み込むとコンテキストを消費するため。理由は `docs/decisions.md` の
+  「1. 指示ファイルの構成」にある 200 行方針と同じ）、ディレクトリ表にも追記した。
+  根拠は `docs/decisions.md` に新設した「7. テスト方針（test-policy.md）」に記録。
+  ISTQB・ISO/IEC/IEEE 29119・OWASP Risk Rating・Quality Gate/Exit Criteria の各公式情報を
+  WebFetch/WebSearch で調べ、内容が矛盾しないことを確認済み（「最初の NO で停止」等、
+  公式より厳格な独自ルールである旨も明記）。この根拠追加に伴い decisions.md の章番号が
+  1つずつ繰り下がった（旧7章「調査の範囲と限界」→8章。`docs/handoff.md` 内の参照も修正済み）
+- **PR #20〜#21** — チェックアウトの締めと、`handoff-stamp.sh`（SessionEnd）が main 上で
+  発火した際の自動記録フッター更新
+- 以下は前段（このセッションの前半）で完了した外部評価3提案への対応
 
 - **提案1（worktree hook の `cwd` 問題）** — 事実確認したところバグだった。4つの hook
   スクリプト（`format.sh` / `typecheck.sh` / `handoff-check.sh` / `handoff-stamp.sh`）が
@@ -84,6 +97,9 @@ PR #1〜#19 をすべてマージ済み。今回のセッションで進めた�
 
 ## 注意点
 
+- **Prettier は Markdown の順序付きリスト（`1. 2. 3.`）を自動で振り直す。** ゼロ埋め ID
+  （`001` 等）を他所から参照する文書では、リスト記法を使うと参照が壊れる。コードブロック
+  （```text）で固定するか、リストにしないこと。`docs/test-policy.md` 実装時に一度壊して気づいた
 - **`.claude/` 配下は「保護パス」で、`permissions.allow` では事前承認できない。**
   公式ドキュメント（permission-modes の Protected paths 節）に明記。`Edit(.claude/**)` を
   allow に入れても効果がなく、`.claude/settings.json` の編集は毎回確認を求められる。
@@ -107,7 +123,7 @@ PR #1〜#19 をすべてマージ済み。今回のセッションで進めた�
   呼べず予算も 1.5 秒、`Stop` はターン単位でしか発火しない。確実なのは `/checkout` の明示実行
 - **`.claude/` 配下は Codex から見えない。** 両ツールで守らせたい内容は `AGENTS.md` に書く
 - 公式の `settings` ページだけは全文を読めていない（サイズ超過）。設定キーの一覧は
-  `settings-reference` の索引表が根拠（`docs/decisions.md` の「7. 調査の範囲と限界」に記載）
+  `settings-reference` の索引表が根拠（`docs/decisions.md` の「8. 調査の範囲と限界」に記載）
 
 <!-- session-end-stamp -->
 
