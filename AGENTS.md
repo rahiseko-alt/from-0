@@ -89,6 +89,7 @@ CLAUDE.md              @AGENTS.md の import のみ。中身は書かない
 .github/workflows/     CI。ジョブ名 check は Ruleset の必須チェック名と一致する
 docs/handoff.md        セッション間の引継ぎ。このファイルから import している
 docs/decisions.md      各設定の根拠。公式由来か選択の結果かを区別した記録
+docs/test-policy.md    テストで見つけた問題を重大度順に処理するためのゲート手順
 src/                   アプリケーションコードとテスト（*.test.ts）
 tsconfig.json          型チェック用。テストを含む全ファイルが対象
 tsconfig.build.json    ビルド用。テストを除外する
@@ -111,6 +112,15 @@ tsconfig.build.json    ビルド用。テストを除外する
 - コミットメッセージ: Conventional Commits（`feat:` `fix:` `chore:` `docs:` `ci:`）
 - **PR を出す前に `pnpm run check` と `pnpm run build` を通す**
 - `main` への直接 push は禁止（Ruleset で強制済み）
+
+## テストで見つけた問題への対処
+
+テスト・レビュー・手動確認で不具合や懸念点を見つけたら、`docs/test-policy.md` の
+重大度ゲート手順（No.001〜100 を上から判定し、最初の NO だけを直す）に従ってください。
+`pnpm run check`／`pnpm run build` の代わりではなく、それらとは別に必要な手順です。
+`@` import はしていません（毎セッション読み込むとコンテキストを消費するため）。
+問題を見つけたときに開いてください。Claude Code・Codex のどちらが実行しても同じ
+結論になるよう、要約せず全文をそのまま使うことが前提です。
 
 ## やってはいけないこと
 
