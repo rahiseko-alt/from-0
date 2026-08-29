@@ -68,7 +68,7 @@ GitHub 側は Ruleset・Template repository・Allow auto-merge・head ブラン�
 - 記録時刻: 2026-08-29 00:20 UTC
 - ブランチ: `claude/checkin-67y0sw`
 - HEAD: `4fb64cf`
-- 未コミットの変更: 
+- 未コミットの変更:
 
 ```
 M docs/handoff.md
