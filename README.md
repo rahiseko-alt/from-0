@@ -21,6 +21,7 @@ Claude Code と Codex で同じリポジトリを扱うための、**公式準�
 | `.gitignore`            | Node/TS・秘密情報・OS に加え、エージェントのローカルファイル |
 | `docs/decisions.md`     | 各項目の根拠。公式由来か選択の結果かを区別した記録           |
 | `docs/handoff.md`       | セッション間の引継ぎ。`AGENTS.md` が import している         |
+| `docs/test-policy.md`   | テストで見つけた問題を重大度順に処理するためのゲート手順     |
 
 ### 開発基盤
 
