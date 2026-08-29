@@ -16,9 +16,13 @@
 
 ## いま何をしているか
 
-雛形の整備は完了済み。ユーザーから外部評価（総合84〜88/100、Claude Code 中心運用を前提とした
-再評価）を受けて出た3件の改善提案に、このセッションで対応した。3件とも決着済みで、
-未マージの PR とオープンな作業はありません。
+ユーザーから外部評価（総合84〜88/100、Claude Code 中心運用を前提とした再評価）を受けて出た
+3件の改善提案に、このセッションで対応した。未マージの PR とオープンな作業はありません。
+
+ただし **完全に完成したわけではない**。claim 2（Ruleset）は未確認のまま `[曖昧]` で止まっており、
+claim 1（worktree hook）の修正も worktree での end-to-end 検証はしていない。さらに、PR #13
+時点から積み残していた「Use this template での実地検証」タスクを、今回の対応に集中する過程で
+一度 handoff から落としてしまっていた（このコミットで復元）。
 
 ## 完了したこと
 
@@ -47,11 +51,20 @@ PR #1〜#15 をすべてマージ済み。今回のセッションで進めた�
 
 ## 次にやること
 
-雛形自体に未着手の課題はありません。次の一手は特にありません。
-
-強いて言えば、提案2（Ruleset）は `[曖昧]` のままなので、ユーザーが GitHub UI で実際の設定
-（Require pull request / 必須レビュー人数 / Require status checks）を確認し、`AGENTS.md` の
-記述と食い違いがあれば知らせてもらうとよい。
+1. **`Use this template` で新規リポジトリを1本作り、実地検証する。**（PR #13 時点から
+   積み残していたタスク。今回の3提案対応に集中する過程で、一度引継ぎから落としてしまった。
+   確認する項目:
+   - `pnpm install` → `pnpm run check` → `pnpm run build` が通る
+   - `/context` で `CLAUDE.md` が Memory files に出る（`@AGENTS.md` と `@docs/handoff.md` が展開される）
+   - `.ts` を編集すると Prettier と `tsc` のフックが走る
+   - workspace trust を承認する前後で `permissions.allow` の効き方が変わる
+   - **`EnterWorktree` で worktree に入り、hook（特に `typecheck.sh` と
+     `handoff-check.sh`/`handoff-stamp.sh`）が worktree 側のディレクトリに対して動くことを
+     確認する。**PR #15 の修正はサンプル JSON を直接パイプした手動テストのみで、実際の
+     worktree セッションでの end-to-end 検証はまだ済んでいない
+2. 提案2（Ruleset）は `[曖昧]` のままなので、ユーザーが GitHub UI で実際の設定
+   （Require pull request / 必須レビュー人数 / Require status checks）を確認し、`AGENTS.md` の
+   記述と食い違いがあれば知らせてほしい
 
 ## 注意点
 
