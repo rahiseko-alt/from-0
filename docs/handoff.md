@@ -17,16 +17,24 @@
 ## いま何をしているか
 
 ユーザーから外部評価（総合84〜88/100、Claude Code 中心運用を前提とした再評価）を受けて出た
-3件の改善提案に、このセッションで対応した。未マージの PR とオープンな作業はありません。
+3件の改善提案への対応は完了し、`main` にマージ済み。`main` は `d32dead`。未マージの PR と
+オープンな作業はありません。
 
-claim 1（worktree hook）は `EnterWorktree` で実際に worktree に入り end-to-end 検証済み。
-その過程で `typecheck.sh` の追加バグ（後述）が見つかり、修正済み。
+claim 1（worktree hook）は `EnterWorktree` で実際に worktree に入り end-to-end 検証済み
+（`format.sh`・`typecheck.sh`・`handoff-check.sh` の3つ）。claim 3（handoff の main 強制
+マージ方針）も方針化・実装・マージ済み。
 
-ただし **完全に完成したわけではない**。claim 2（Ruleset）は未確認のまま `[曖昧]` で止まっている。
+**完全に完成したわけではない。** 残る未解決は2点、どちらも私には解決手段が無い：
+
+- claim 2（Ruleset）は `[曖昧]` のまま。API から読む手段が無く、ユーザーが GitHub UI で
+  確認しないと確定しない
+- `handoff-stamp.sh`（SessionEnd）だけは実際にセッションを終了させないと harness 経由で
+  発火させられない。手動 JSON テストのみで確認済み（ロジックは検証済みの `handoff-check.sh`
+  と同型）
 
 ## 完了したこと
 
-PR #1〜#15 をすべてマージ済み。今回のセッションで進めたのは PR #14〜#15、および3提案への対応。
+PR #1〜#19 をすべてマージ済み。今回のセッションで進めたのは PR #14〜#19、および3提案への対応。
 
 - **提案1（worktree hook の `cwd` 問題）** — 事実確認したところバグだった。4つの hook
   スクリプト（`format.sh` / `typecheck.sh` / `handoff-check.sh` / `handoff-stamp.sh`）が
@@ -44,7 +52,7 @@ PR #1〜#15 をすべてマージ済み。今回のセッションで進めた�
   `cwd` に対して正しく動くことを確認した。`handoff-stamp.sh`（SessionEnd）だけは、実際に
   セッションを終了させないと発火させられないため、サンプル JSON の手動テストのみで確認済み
 - **提案2（GitHub Ruleset）** — API から直接読む手段が無い（`gh` CLI 非搭載、ruleset 取得
-  ツールなし、`curl` は deny 済み）。間接証拠として、このセッションで出した PR #10〜#15 は
+  ツールなし、`curl` は deny 済み）。間接証拠として、このセッションで出した PR #10〜#19 は
   全て `merge_pull_request` がレビュー承認待ちで弾かれず通っている。レビュー必須なら失敗する
   はずなので、**現状すでに「レビュー承認0人」相当である可能性が高い**が断定はできない。
   `[曖昧]` — ユーザーが GitHub の Settings → Rules → Rulesets 画面で確認すれば確定する
