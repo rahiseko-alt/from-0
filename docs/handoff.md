@@ -14,8 +14,8 @@
 
 ## いま何をしているか
 
-雛形の整備は完了済み。`main` は `2320fe2`。未マージの PR とオープンな作業はありません。
-次の作業は未着手です。
+雛形の整備は完了済み。`main` は `4fb64cf`（PR #9 まで反映）。未マージの PR とオープンな
+作業はありません。次の作業は未着手です。
 
 ## 完了したこと
 
@@ -60,3 +60,12 @@ GitHub 側は Ruleset・Template repository・Allow auto-merge・head ブラン�
 - **`.claude/` 配下は Codex から見えない。** 両ツールで守らせたい内容は `AGENTS.md` に書く
 - 公式の `settings` ページだけは全文を読めていない（サイズ超過）。設定キーの一覧は
   `settings-reference` の索引表が根拠（`docs/decisions.md` の「7. 調査の範囲と限界」に記載）
+
+<!-- session-end-stamp -->
+
+## セッション終了時点の状態（自動記録）
+
+- 記録時刻: 2026-08-29 01:03 UTC
+- ブランチ: `claude/checkin-67y0sw`
+- HEAD: `eaa0d94`
+- 未コミットの変更: なし
