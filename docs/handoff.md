@@ -1,27 +1,35 @@
 # 引継ぎ
 
-セッションをまたいで作業を継続するための文書です。**このファイルだけ読めば再開できる**状態を保ってください。
+セッションをまたいで作業を継続するための文書です。役割は**「次にどの branch を見ればいいか」の
+ポインタ**に限ります。branch 固有の詳細（何が途中か、次に何をするか）はその branch 自身の
+コミットや開いてある PR の本文に書き、ここには短いポインタだけを置いてください。恒久的な
+リポジトリのルールもここには書きません（`AGENTS.md`・`docs/decisions.md` を参照）。
+
+同時に複数 branch が進行中の場合は、「次にやること」に branch ごと1エントリで列挙してください。
+この雛形は複数 branch の並行開発を想定した状態管理は持っていません。本格的に必要になったら
+`docs/decisions.md`「3-b. セッション間の引継ぎ」を読んでから設計し直してください。
 
 - `AGENTS.md` がこのファイルを `@` で import しているため、セッション開始時に自動で読み込まれます
 - 未記録の変更が残っていると、`.claude/hooks/handoff-check.sh` が1セッションに1回だけ更新を求めます
-- セッション終了時、`.claude/hooks/handoff-stamp.sh` が末尾に機械的な事実を追記します
+- セッション終了時、`.claude/hooks/handoff-stamp.sh` が末尾の状態を機械的に**上書き**します（追記ではない）
 - 作業開始時は `/checkin`、区切りでは `/handoff`、終了時は `/checkout` を実行してください
 
 **このファイル（引継ぎ文）を更新したら、必ず `main` へマージしてください。** 次のセッションは
 `main` を新規クローンし、この docs/handoff.md しか自動では読みません。実際のコード変更は、
 未完了なら push 済みの branch/worktree に残したままで構いません（push していれば origin に
-残るため消えません）。その場合は「次にやること」に、どの branch を見ればよいか書いてください。
+残るため消えません）。
 
 ---
 
 ## いま何をしているか
 
-雛形の整備は継続中。直近は `AGENTS.md` の分量削減に対応した。まだ commit / push / PR
-していない（このコミットで行う）。
+雛形の整備は継続中。直近は、外部評価から「`main` 上の単一 `handoff.md` が複数 branch の並列
+worktree 作業と両立しない」との指摘を受け、`handoff.md` の役割を「branch へのポインタ」に
+絞る改修を行った。まだ commit / push / PR していない（このコミットで行う）。
 
 ## 完了したこと
 
-PR #1〜#23 をすべてマージ済み。うち主なもの:
+PR #1〜#24 をすべてマージ済み。うち主なもの:
 
 - **worktree hook の修正**（PR #15, #18, #19）— 4つの hook（`format.sh` / `typecheck.sh` /
   `handoff-check.sh` / `handoff-stamp.sh`）が `${CLAUDE_PROJECT_DIR}`（メインチェックアウト）に
@@ -36,13 +44,24 @@ PR #1〜#23 をすべてマージ済み。うち主なもの:
   ズレるため、コードブロック（```text）で固定した。ISTQB・ISO/IEC/IEEE 29119・OWASP Risk
   Rating・Quality Gate/Exit Criteria と矛盾しないことを確認し `docs/decisions.md` の
   「7. テスト方針」に記録
-- **`AGENTS.md` の分量削減**（今回、未 push）— 「説明過多で AGENTS.md の役割を超えている」との
+- **`AGENTS.md` の分量削減**（PR #24）— 「説明過多で AGENTS.md の役割を超えている」との
   指摘を受け、[best-practices](https://code.claude.com/docs/en/best-practices) の Include /
   Exclude 表と「削ると挙動が変わるか」の基準で全面的に見直した。157行→86行。ディレクトリ一覧・
   設計理由・hooks の仕組み説明・Claude Code/Codex の読み込み機構の解説など、挙動を変えない
   記述を削除（README.md と decisions.md が元々カバーしていたので情報は失っていない）。
   ブランチ命名規則やコミット規約は公式の Include 項目（"Repository etiquette"）に該当するため
-  残した。`docs/decisions.md`・`README.md` も整合するよう更新した
+  残した
+- **`handoff.md` の役割を「branch へのポインタ」に絞る**（今回、未 push）— 外部評価の指摘。
+  並列 worktree で複数 branch が同時進行すると、`main` 上の単一 `handoff.md` を互いの
+  更新が上書きし合う。branch 固有の詳細はその branch 自身のコミット/PR に置く形に変え、
+  同時進行時は「次にやること」に branch ごと列挙する運用にした。「注意点」に混入していた
+  恒久的なリポジトリのルール（CI ジョブ名の制約、main 直 push 禁止、Codex から `.claude/`
+  が見えない等）は `AGENTS.md`/`docs/decisions.md` 側に一本化し、ここからは削除した。
+  `.claude/` が保護パスである事実は `docs/decisions.md`「2. 権限」に、Prettier のリスト
+  自動整形の落とし穴は「7. テスト方針」に、それぞれ移設して記録した。根拠は
+  `docs/decisions.md`「3-b. セッション間の引継ぎ」に記録。フル装備の Issue/Task 管理層
+  （Goal→Issue→Branch→Worktree→Agent の階層構造）は、この雛形の「使わない仕組みを配らない」
+  という方針と矛盾するため見送った
 
 ## 次にやること
 
@@ -63,26 +82,12 @@ PR #1〜#23 をすべてマージ済み。うち主なもの:
 
 ## 注意点
 
-- **Prettier は Markdown の順序付きリスト（`1. 2. 3.`）を自動で振り直す。** ゼロ埋め ID
-  （`001` 等）を他所から参照する文書では、リスト記法を使うと参照が壊れる。コードブロック
-  （```text）で固定するか、リストにしないこと
-- **`.claude/` 配下は「保護パス」で、`permissions.allow` では事前承認できない。**
-  公式ドキュメント（permission-modes の Protected paths 節）に明記。止めるレバーは
-  `bypassPermissions` モードのみ（deny ルールも含め全プロンプトを止める）。
-  `.claude/settings.local.json`（gitignore 済み）に書いても次セッションには残らないため、
-  ユーザーは採用を見送り済み
-- **CI のジョブ名 `check` は Ruleset の必須チェック名と一致している。** 改名すると必須チェックが
-  外れて PR がマージ不能になる
-- **`main` への直接 push は Ruleset で禁止されている。** 作業はブランチと PR 経由
-- **`Bash(rm *)` と `Bash(git reset --hard *)` が deny されている。** ファイル削除は `git clean`
-  や `git rm`、ブランチ同期は `git merge --ff-only` を使う
-- **`permissions.allow` に広いパターンを足すときは、破壊的な部分集合が混じっていないか
-  確認すること。** `Bash(git branch *)` が `git branch -D` まで無確認で通してしまった件が原因
+**恒久的なリポジトリのルールはここに書かない。** `AGENTS.md`（指示）と `docs/decisions.md`
+（根拠）を参照する。ここに書くのは、セッションをまたいで再発しうる作業上の落とし穴だけ。
+
 - **hook のロジックを「サンプル JSON を手動でパイプする」テストだけで済ませない。**
-  `EnterWorktree` で実際に worktree に入って初めて発覚したバグがあった
-- **セッション終了時にモデルへ引継ぎを書かせる公式手段は存在しない。** `SessionEnd` はモデルを
-  呼べず予算も 1.5 秒、`Stop` はターン単位でしか発火しない。確実なのは `/checkout` の明示実行
-- **`.claude/` 配下は Codex から見えない。** 両ツールで守らせたい内容は `AGENTS.md` に書く
+  `typecheck.sh` の `node_modules` 探索バグは、常にメインチェックアウトから手動テストしていた
+  ため見逃していた。`EnterWorktree` で実際に worktree に入って初めて発覚した
 - 公式の `settings` ページだけは全文を読めていない（サイズ超過）。設定キーの一覧は
   `settings-reference` の索引表が根拠（`docs/decisions.md` の「8. 調査の範囲と限界」に記載）
 

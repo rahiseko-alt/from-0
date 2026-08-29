@@ -79,6 +79,7 @@ pnpm run format   # Prettier で整形
 - **`CLAUDE.md` に「AGENTS.md に従うこと」と文章で書いても機能しない。** `@` から始まるパス記法だけが読み込みを発生させる
 - **`Explore` と `Plan` のサブエージェントは `CLAUDE.md`（＝このファイル）を読まない。** この2つに守らせたい制約は、委譲するときのプロンプトに書き直すこと
 - **worktree に入ってもフックの `${CLAUDE_PROJECT_DIR}` はメインのチェックアウトを指したまま。** worktree 側のパスが必要なフックは、標準入力 JSON の `cwd` フィールドを読む
+- **`.claude/` 配下（skills・agents・hooks）は Codex から見えない。** 両ツールに守らせたい指示は `AGENTS.md` に書く
 
 ## 指示ファイルの構成
 
