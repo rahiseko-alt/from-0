@@ -55,21 +55,22 @@
 
 ## 2. 権限（`.claude/settings.json`）
 
-| 項目                                              | 区分     | 根拠 / 理由                                                                                                                       |
-| ------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| ルールの記法（`Bash(cmd *)` `Read(./path)` `:*`） | **公式** | [permissions](https://code.claude.com/docs/en/permissions)                                                                        |
-| 鍵ファイルに `Edit` deny も付ける                 | **公式** | 同上 — "NotebookEdit isn't covered, so add an `Edit` deny rule"                                                                   |
-| `Bash(rm *)`（`rm -rf *` ではなく）               | **公式** | 同上 — 最初の `*` より前は文字通り一致するため、`rm -fr` を取りこぼす                                                             |
-| `curl`/`wget` を deny し WebFetch に許可を与える  | **公式** | 同上 — この2つを一組で推奨している                                                                                                |
-| deny は allow より優先する                        | **公式** | [permissions](https://code.claude.com/docs/en/permissions) — 評価順は Deny → Ask → Allow                                          |
-| allow / deny に**何を入れるか**の選定             | **判断** | 記法は公式、中身は私の選択。使うコマンドに合わせて各プロジェクトで調整してよい                                                    |
-| 読み取り専用の git を allow に入れる              | **判断** | `show` `fetch` `branch` `rev-parse` `ls` を許可。破壊的な部分集合（`branch -d`/`-D`）は deny 優先の原則どおり deny 側で個別に塞ぐ |
-| `git branch -d`/`-D` を deny                      | **判断** | `Bash(git branch *)` の allow はブランチ削除も含んでしまう。`rm`/`reset --hard` と同じ形で、破壊的な部分だけ deny に足して塞いだ  |
-| `git push` を ask から allow に移す               | **判断** | `--force` と `-f` は deny 済みで deny が allow に優先し、`main` 直 push は Ruleset が止める。二重の確認より許可の回数を優先した   |
-| `WebFetch` を `code.claude.com` に限定            | **判断** | この雛形が公式ドキュメントを参照する前提のため。必要なドメインは追加してよい                                                      |
-| `respectGitignore: true`                          | **判断** | 公式の分類では「Interface and terminal」であり、セキュリティ設定ではない。害がないので残しているだけ                              |
-| サンドボックスを既定で有効化**しない**            | **判断** | 公式は defense-in-depth として推奨している。ネイティブ Windows で動かず `allowWrite` が環境依存のため、壊れた既定を配らない選択   |
-| `permissions.defaultMode` を書かない              | **判断** | プロジェクト値がユーザー値を上書きするため、全員の auto モードを奪う。`"auto"` はプロジェクトファイルからは効かず選択肢が非対称   |
+| 項目                                              | 区分     | 根拠 / 理由                                                                                                                                                                 |
+| ------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ルールの記法（`Bash(cmd *)` `Read(./path)` `:*`） | **公式** | [permissions](https://code.claude.com/docs/en/permissions)                                                                                                                  |
+| 鍵ファイルに `Edit` deny も付ける                 | **公式** | 同上 — "NotebookEdit isn't covered, so add an `Edit` deny rule"                                                                                                             |
+| `Bash(rm *)`（`rm -rf *` ではなく）               | **公式** | 同上 — 最初の `*` より前は文字通り一致するため、`rm -fr` を取りこぼす                                                                                                       |
+| `curl`/`wget` を deny し WebFetch に許可を与える  | **公式** | 同上 — この2つを一組で推奨している                                                                                                                                          |
+| deny は allow より優先する                        | **公式** | [permissions](https://code.claude.com/docs/en/permissions) — 評価順は Deny → Ask → Allow                                                                                    |
+| allow / deny に**何を入れるか**の選定             | **判断** | 記法は公式、中身は私の選択。使うコマンドに合わせて各プロジェクトで調整してよい                                                                                              |
+| 読み取り専用の git を allow に入れる              | **判断** | `show` `fetch` `branch` `rev-parse` `ls` を許可。破壊的な部分集合（`branch -d`/`-D`）は deny 優先の原則どおり deny 側で個別に塞ぐ                                           |
+| `git branch -d`/`-D` を deny                      | **判断** | `Bash(git branch *)` の allow はブランチ削除も含んでしまう。`rm`/`reset --hard` と同じ形で、破壊的な部分だけ deny に足して塞いだ                                            |
+| `git push` を ask から allow に移す               | **判断** | `--force` と `-f` は deny 済みで deny が allow に優先し、`main` 直 push は Ruleset が止める。二重の確認より許可の回数を優先した                                             |
+| PR 監視系の `mcp__Claude_Code_Remote__*` を allow | **判断** | `subscribe`/`unsubscribe`_pr_activity、trigger の作成・更新・削除・即時実行、`send_later` はコードやリポジトリを変更しない。CI 監視のたびに確認を求められていたため追加した |
+| `WebFetch` を `code.claude.com` に限定            | **判断** | この雛形が公式ドキュメントを参照する前提のため。必要なドメインは追加してよい                                                                                                |
+| `respectGitignore: true`                          | **判断** | 公式の分類では「Interface and terminal」であり、セキュリティ設定ではない。害がないので残しているだけ                                                                        |
+| サンドボックスを既定で有効化**しない**            | **判断** | 公式は defense-in-depth として推奨している。ネイティブ Windows で動かず `allowWrite` が環境依存のため、壊れた既定を配らない選択                                             |
+| `permissions.defaultMode` を書かない              | **判断** | プロジェクト値がユーザー値を上書きするため、全員の auto モードを奪う。`"auto"` はプロジェクトファイルからは効かず選択肢が非対称                                             |
 
 ## 3. フック
 
