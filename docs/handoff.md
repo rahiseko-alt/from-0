@@ -23,51 +23,50 @@
 
 ## いま何をしているか
 
-Graph Engineering（複数AIが並行して大計画のゴールへ向かう運用）の基礎作り。全体計画
-（`docs/plan.json`）の仕組みは設計・実装とも完了（PR #33）。**そのうえで、この雛形を実際に
-コピーして使おうとしたところ雛形として壊れていることが判明し、直した（PR #35）。**
-次は実地検証。
+Graph Engineering（複数AIが並行して大計画のゴールへ向かう運用）の基礎作り。**全体計画
+（`docs/plan.json`）の仕組みを設計・実装まで完了した。** 設計は一次情報3系統（Claude Code
+公式／Anthropic 公式ブログ／GitHub spec-kit ほか）で裏付け、確定9点。実装は PR #33（main にマージ済み）。
+**ただし実地で一周させていない。** 次は実地検証。
 
 ## 完了したこと
 
-PR #1〜#35 をすべて main にマージ済み。
+PR #1〜#33 をすべて main にマージ済み。
 
-- **雛形として使えるように直した**（PR #35）— コピー先が「雛形の開発」を自分の目的だと
-  誤認する問題、技術構成が Node/TypeScript に固定されていた問題、全体計画の検証が
-  TypeScript 依存だった問題の3つ。詳細と根拠は `docs/decisions.md`「12. 雛形として
-  使えるようにする」。`scripts/check-plan.mjs`（依存関係ゼロ）／`docs/stack.md` と
-  `docs/stack.examples/`／`docs/handoff.template.md`／`/project-init`／`/checkin` の
-  未初期化検出を追加
-- **全体計画の仕組みを実装**（PR #33）— `scripts/check-plan.mjs`（型と検証）／
-  `docs/plan.example.json`（見本）／`.claude/agents/completion-checker.md`（完了判定役）／
-  `.claude/skills/plan-init`・`plan-verify`・`plan-ask`／`AGENTS.md` に「全体計画」節
-- **設計の確定9点と一次情報の原文根拠**（PR #32, #33）— `docs/decisions.md` に記録
-- **未検証の懸念6つを `AGENTS.md` に明記**（PR #33）— 別台帳は作らず、毎セッション
-  読まれる場所に置き、**懸念が外れたらその場で書き換える**運用
-- **チェックイン／チェックアウトの既定動作**（PR #33）— スコープ報告、達成後は聞かずに
-  `/checkout`、「消失」を必ず報告
-- **失敗行動台帳・放置台帳**（PR #27〜#30）
+- **全体計画の仕組みを実装**（PR #33）— `src/plan.ts`（型と検証。番号の不変性・昇順、
+  確かめ方と触るファイルの空欄、存在しない依存先を機械的に弾く。並列可否と進捗はフィールドに
+  持たず導出する）／`src/plan.test.ts`・`src/plan.file.test.ts`（25件）／
+  `docs/plan.example.json`（見本）／`.claude/agents/completion-checker.md`（完了判定役。
+  status も git 履歴も見ず verify の手順だけをなぞる）／`.claude/skills/plan-init`・
+  `plan-verify`・`plan-ask`／`/checkin` に「次の1項目を選ぶ」・`/checkout` に「完了判定を
+  受ける」を追加／`AGENTS.md` に「全体計画」節
+- **設計の確定9点と一次情報の原文根拠**（PR #32, #33）— `docs/decisions.md`
+  「ユーザーが確定させた点」「残っていた5点も確定」「10. 全体計画の実装」に記録
+- **未検証の懸念6つを `AGENTS.md` に明記**（PR #33）— 別台帳は作らない判断。毎セッション
+  読まれる場所に置き、**懸念が外れたらその場で書き換える**運用（記録を残すこと自体が目的の
+  台帳とは性質が違う）
+- **チェックイン／チェックアウトの既定動作**（PR #33）— `/checkin` でスコープを報告、
+  達成後は聞かずに `/checkout` まで実行、`/checkout` で「消失」を必ず報告（無ければ「なし」）
+- **失敗行動台帳・放置台帳**（PR #27〜#30）— 実装・main マージ済み
 
 ## 次にやること
 
-1. **`Use this template` で新規リポジトリを1本作り、実地検証する。** **まず `/checkin` が
-   未初期化を検出し `/project-init` が目的を聞いてくるかを確かめること**（PR #35 で入れたが
-   実地では未確認）。そのうえで `/plan-init` から `/checkout` まで一周させ、
-   **`AGENTS.md`「未検証の懸念」の6項目**を確かめる。特に次の2つ:
+1. **`Use this template` で新規リポジトリを1本作り、実地検証する。** 全体計画の仕組みを
+   `/plan-init` から `/checkout` まで一周させることが主目的。**`AGENTS.md`「未検証の懸念」
+   の6項目を、実際に回して確かめる。** 特に確かめたいのは次の2つ:
    - 完了判定役が、作った側の報告に引きずられずに判定できるか
-   - `verify` を「人間がたどれる手順」として書き続けられるか（**中身の質は CI で検査できない**）
+   - `verify` を「人間がたどれる手順」として書き続けられるか（`verify` の中身の質は
+     CI で検査できない。空でないことしか見ていない）
 
    あわせて雛形そのものの確認（PR #13 からの積み残し）:
+   - `pnpm install` → `pnpm run check` → `pnpm run build` が通る
    - `/context` で `CLAUDE.md` が Memory files に出る
    - `.ts` を編集すると Prettier と `tsc` のフックが走る
    - workspace trust を承認する前後で `permissions.allow` の効き方が変わる
 
-2. **技術構成を Python や既存 OSS に差し替えた場合の実地確認は未実施。**
-   `docs/stack.examples/` は書いただけで、実際に回していない `[曖昧]`
-3. GitHub Ruleset の実態は `[曖昧]` のまま。ユーザーが Settings → Rules → Rulesets 画面で
-   確認し、`AGENTS.md` の記述と食い違いがあれば知らせてほしい
-4. `handoff-stamp.sh`（SessionEnd）は実際にセッションを終了させないと発火させられない。
-   手動 JSON テストのみで確認済み（優先度は低い）
+2. GitHub Ruleset の実態は `[曖昧]` のまま。ユーザーが GitHub の Settings → Rules → Rulesets
+   画面で確認し、`AGENTS.md` の記述と食い違いがあれば知らせてほしい
+3. `handoff-stamp.sh`（SessionEnd）は実際にセッションを終了させないと harness 経由で発火
+   させられない。手動 JSON テストのみで確認済み（優先度は低い）
 
 ## 注意点
 
@@ -91,7 +90,7 @@ PR #1〜#35 をすべて main にマージ済み。
 
 ## セッション終了時点の状態（自動記録）
 
-- 記録時刻: 2026-08-30 13:54 UTC
+- 記録時刻: 2026-08-30 11:04 UTC
 - ブランチ: `claude/checkin-pr7h9s`
-- HEAD: `5216e7c`
+- HEAD: `4529541`
 - 未コミットの変更: なし

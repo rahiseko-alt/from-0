@@ -42,9 +42,8 @@
 ## 全体計画（`docs/plan.json`）
 
 複数セッション・複数 AI でひとつのゴールへ向かうときの土台です。**まだ存在しない場合は
-`/plan-init` で一度だけ作ります。** 形式の見本は `docs/plan.example.json`、検証は
-`node scripts/check-plan.mjs`。**この検証スクリプトは依存関係ゼロの素の JavaScript で、
-プロジェクト本体が Python でも React でも Node さえあれば動きます。** CI から必ず呼んでください。
+`/plan-init` で一度だけ作ります。** 形式の見本は `docs/plan.example.json`、型と検証は
+`src/plan.ts`（`pnpm run test` で毎回検証される）。
 
 - **計画は一度作ったら本文を書き換えない。** できるのは各項目の `status` を変えることと、
   **末尾への追記**（番号は既存の最大値 +1）だけ。**既存項目の書き換え・削除・番号の
@@ -116,42 +115,51 @@
 `AGENTS.md` と `.claude/settings.json` を変更する前に、**`docs/decisions.md` を読んでください。**
 変更したら該当行も更新します。記入の作法は `docs/decisions.md` 冒頭の凡例に従ってください。
 
-## 技術構成
+## 前提環境
 
-@docs/stack.md
+Node 22 / pnpm / TypeScript 5 / ESM。**npm と yarn は使わないでください。**
+`.npmrc` の `engine-strict=true` により、条件を満たさない環境では `pnpm install` が失敗します。
 
-言語・パッケージマネージャ・コマンド・コーディング規約は、**プロジェクトごとに違う**ため
-`docs/stack.md` に分けてあります。**Codex はこの import を展開しません。自分でファイルを
-開いて読んでください。**
+## コマンド
 
-**構成を変えるときは `docs/stack.md` だけを書き換えます。** このファイル（`AGENTS.md`）に
-言語やコマンドを書き戻さないでください。書き戻すと、この雛形をコピーした別の用途の
-プロジェクトで矛盾が起きます。
+```bash
+pnpm install
+pnpm run check    # format:check + typecheck + test。コミット前に必ず通す
+pnpm run test     # Vitest（監視は test:watch）
+pnpm run build    # tsc で dist/ に出力
+pnpm run format   # Prettier で整形
+```
+
+## コーディング規約
+
+- **型**: `strict` 前提。`any` は使わない
+- **命名**: 変数・関数は `camelCase`、型・クラスは `PascalCase`、定数は `UPPER_SNAKE_CASE`、ファイル名は `kebab-case.ts`
+- **フォーマット**: Prettier に一任し、手で整形し直さない。正本は `.prettierrc.json` と `.editorconfig`
+- **コメント**: 「何をしているか」ではなく「なぜそうしたか」を書く
 
 ## Git 運用
 
 - ブランチ名: `feat/*` `fix/*` `chore/*` `docs/*` `ci/*`
 - コミットメッセージ: Conventional Commits（`feat:` `fix:` `chore:` `docs:` `ci:`）
-- **PR を出す前に、`docs/stack.md` に書かれた検証コマンドを通す**
-- **`node scripts/check-plan.mjs` を通す**（`docs/plan.json` がある場合）
+- **PR を出す前に `pnpm run check` と `pnpm run build` を通す**
 - `main` への直接 push は禁止（Ruleset で強制済み）
 
 ## テストで見つけた問題への対処
 
 テスト・レビュー・手動確認で不具合や懸念点を見つけたら、`docs/test-policy.md` の
-重大度ゲート手順に従ってください。`docs/stack.md` の検証コマンドとは別に必要な手順です。
+重大度ゲート手順に従ってください。`pnpm run check`／`pnpm run build` とは別に必要な手順です。
 
 ## やってはいけないこと
 
 - **`git push --force` と履歴の書き換え**（Ruleset でも禁止済み）
 - **`.env` と鍵ファイル（`*.pem` `*.key`）の読み書き**。新しい環境変数は `.env.example` にキー名だけを追加する
-- **ロックファイルの手編集**。パッケージマネージャのコマンドで再生成する
-- **ビルド生成物の編集**。生成元のソースを直す
+- **`pnpm-lock.yaml` の手編集**。`pnpm` コマンドで再生成する
+- **`dist/` の編集**。ビルド生成物なので `src/` を直す
 - **CI のジョブ名 `check` の改名**。Ruleset の必須チェックが外れて PR がマージ不能になる
-- **`AGENTS.md` に言語・コマンド・ファイル拡張子を書き戻すこと**。それらは `docs/stack.md` の担当
 
 ## 落とし穴
 
+- **ESM のため、相対 import には拡張子 `.js` を付ける**（`./foo.ts` ではなく `./foo.js`）
 - **`CLAUDE.md` に「AGENTS.md に従うこと」と文章で書いても機能しない。** `@` から始まるパス記法だけが読み込みを発生させる
 - **`Explore` と `Plan` のサブエージェントは `CLAUDE.md`（＝このファイル）を読まない。** この2つに守らせたい制約は、委譲するときのプロンプトに書き直すこと
 - **worktree に入ってもフックの `${CLAUDE_PROJECT_DIR}` はメインのチェックアウトを指したまま。** worktree 側のパスが必要なフックは、標準入力 JSON の `cwd` フィールドを読む

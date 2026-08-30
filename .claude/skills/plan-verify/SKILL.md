@@ -35,7 +35,7 @@ T003 はもう「済」なので、誰も見に行かない → 誰も気づか�
 ### 1. 対象を絞る
 
 ```bash
-node scripts/check-plan.mjs
+pnpm run test
 ```
 
 `automation` が `ci` の項目は、CI が毎コミット見ています。**手でなぞるのは
