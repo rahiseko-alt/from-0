@@ -71,12 +71,11 @@ description: 全体計画（docs/plan.json）を一度だけ作る。プロジ�
 ### 4. 検証を通す
 
 ```bash
-node scripts/check-plan.mjs
+pnpm run test
 ```
 
-id の重複・順序、確かめ方の空欄、存在しない依存先などがここで弾かれます。
-**このスクリプトは依存関係ゼロの素の JavaScript で、プロジェクト本体の言語に依存しません。**
-`docs/stack.md` の検証コマンド（CI）からも必ず呼んでください。
+`docs/plan.json` があると自動で検証されます。id の重複・順序、確かめ方の空欄、
+存在しない依存先などがここで弾かれます。
 
 ### 5. ユーザーに見せる
 
