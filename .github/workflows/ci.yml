@@ -31,6 +31,12 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
 
+      # 全体計画の検証はプロジェクトの言語に依存しない。依存関係の導入より先に、
+      # Node だけで実行する。技術構成を差し替えてもこの1行は残すこと。
+      - name: check plan
+        run: node scripts/check-plan.mjs
+        if: hashFiles('docs/plan.json') != ''
+
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm run check
