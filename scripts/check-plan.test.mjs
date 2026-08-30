@@ -1,17 +1,22 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
 import {
   canRunInParallel,
   countProgress,
+  formatProgress,
   nextId,
   nextItem,
   parsePlan,
   validatePlan,
-  type Plan,
-  type PlanItem,
-} from './plan.js';
+} from './check-plan.mjs';
 
-function item(overrides: Partial<PlanItem> & Pick<PlanItem, 'id'>): PlanItem {
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+function item(overrides) {
   return {
     title: '見出し',
     deliverable: 'できるもの',
@@ -25,7 +30,7 @@ function item(overrides: Partial<PlanItem> & Pick<PlanItem, 'id'>): PlanItem {
   };
 }
 
-function plan(items: PlanItem[]): Plan {
+function plan(items) {
   return { goal: '問題がなければ即リリースできる状態', items };
 }
 
@@ -65,9 +70,7 @@ describe('validatePlan', () => {
   });
 
   it('automation と status の値を制限する', () => {
-    const errors = validatePlan(
-      plan([item({ id: 'T001', automation: 'browser' as never, status: '済' as never })]),
-    );
+    const errors = validatePlan(plan([item({ id: 'T001', automation: 'browser', status: '済' })]));
     expect(errors.some((e) => e.includes('automation'))).toBe(true);
     expect(errors.some((e) => e.includes('status'))).toBe(true);
   });
@@ -162,5 +165,43 @@ describe('canRunInParallel', () => {
 describe('nextId', () => {
   it('既存の最大値の次を返す（欠番は埋めない）', () => {
     expect(nextId(plan([item({ id: 'T001' }), item({ id: 'T008' })]))).toBe('T009');
+  });
+});
+
+describe('formatProgress', () => {
+  it('追加分と確認待ちが無ければ当初計画だけを出す', () => {
+    const text = formatProgress(countProgress(plan([item({ id: 'T001' })])));
+    expect(text).toBe('当初計画 0/1');
+  });
+
+  it('追加分と確認待ちを別枠で出す', () => {
+    const text = formatProgress(
+      countProgress(
+        plan([
+          item({ id: 'T001', status: 'done' }),
+          item({ id: 'T002', status: 'awaiting_human', origin: 'added' }),
+        ]),
+      ),
+    );
+    expect(text).toContain('当初計画 1/1');
+    expect(text).toContain('追加分 0/1');
+    expect(text).toContain('確認待ち 1件');
+  });
+});
+
+describe('docs/plan.example.json', () => {
+  const example = JSON.parse(readFileSync(join(repoRoot, 'docs', 'plan.example.json'), 'utf8'));
+
+  it('見本そのものが検証を通る', () => {
+    expect(validatePlan(example)).toEqual([]);
+  });
+
+  it('CI で確認できる項目と人間が確認するしかない項目の両方を含む', () => {
+    expect(example.items.some((i) => i.automation === 'human')).toBe(true);
+    expect(example.items.some((i) => i.automation === 'ci')).toBe(true);
+  });
+
+  it('依存先が未完了の項目は次の一手に選ばれない', () => {
+    expect(nextItem(example)?.id).toBe('T003');
   });
 });
