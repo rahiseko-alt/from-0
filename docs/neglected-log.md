@@ -38,3 +38,15 @@
 タイミングでは読まない。詳細は `AGENTS.md`「失敗と放置の記録」を参照。
 
 ---
+
+### 2026-08-31 15:40 UTC
+
+- 触れたGate: `096 低優先度品質`（不要な警告・エラーが大量発生していないか）
+- 対象箇所: `.claude/hooks/neglect-check.sh` / `.claude/hooks/question-style-check.sh`
+- 実際にこのセッションの締めで `neglect-check.sh` が発火した（Gate を破っていない場面で）
+
+### 2026-08-31 15:40 UTC
+
+- 触れたGate: `081 性能・運用`（通常利用で主要操作が実用不能なほど遅くないか）
+- 対象箇所: `package.json` の `plan:progress` / `plan:next` / `plan:next-id` / `plan:parallel`
+- 4本とも実行のたびに `pnpm run build` を先に走らせる
