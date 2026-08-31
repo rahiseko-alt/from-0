@@ -7,6 +7,7 @@ import {
   nextItem,
   parsePlan,
   validatePlan,
+  validateVerifySteps,
   type Plan,
   type PlanItem,
 } from './plan.js';
@@ -15,7 +16,7 @@ function item(overrides: Partial<PlanItem> & Pick<PlanItem, 'id'>): PlanItem {
   return {
     title: '見出し',
     deliverable: 'できるもの',
-    verify: ['開く', '見る'],
+    verify: ['docs/plan.json を開く', '中身が書かれていることを確認する'],
     dependsOn: [],
     files: [`${overrides.id}.html`],
     automation: 'ci',
@@ -162,5 +163,49 @@ describe('canRunInParallel', () => {
 describe('nextId', () => {
   it('既存の最大値の次を返す（欠番は埋めない）', () => {
     expect(nextId(plan([item({ id: 'T001' }), item({ id: 'T008' })]))).toBe('T009');
+  });
+});
+
+// T009: 「テストが通る」のように、何を実行し何が起きれば合格かを示さない書き方を拒む。
+describe('validateVerifySteps', () => {
+  it('対象も期待結果も示さない書き方を拒む', () => {
+    expect(validateVerifySteps(['テストが通る']).length).toBeGreaterThan(0);
+  });
+
+  it('対象コマンドと期待結果を示す書き方は通す', () => {
+    expect(
+      validateVerifySteps(['pnpm run testを実行し、新しいテストが通ることを確認する']),
+    ).toEqual([]);
+  });
+
+  it('下ごしらえの手順に期待結果が無くても、項目のどこかにあれば通す', () => {
+    expect(
+      validateVerifySteps([
+        'index.html をブラウザで開く',
+        '画面幅をスマホ相当（375px）まで狭める',
+        '文字が画面からはみ出していないことを確認する',
+      ]),
+    ).toEqual([]);
+  });
+
+  it('期待結果がどの手順にも無ければ拒む', () => {
+    const errors = validateVerifySteps(['index.html をブラウザで開く', '画面幅を狭めてみる']);
+    expect(errors.some((e) => e.includes('できた'))).toBe(true);
+  });
+
+  it('一言だけの手順を拒む', () => {
+    const errors = validateVerifySteps(['開く', '表示されることを確認する']);
+    expect(errors.some((e) => e.includes('短すぎます'))).toBe(true);
+  });
+
+  it('人が見て判断する項目（説明してもらう）も期待結果として認める', () => {
+    expect(validateVerifySteps(['実際に画面を見せ、進み具合を説明してもらう'])).toEqual([]);
+  });
+});
+
+describe('validatePlan と確かめ方の書き方', () => {
+  it('曖昧な確かめ方の項目を含む計画はエラーになる', () => {
+    const errors = validatePlan(plan([item({ id: 'T001', verify: ['テストが通る'] })]));
+    expect(errors.some((e) => e.includes('items[0]'))).toBe(true);
   });
 });

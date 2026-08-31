@@ -62,6 +62,13 @@ marker=".claude/.handoff-state/${session_id}"
 mkdir -p .claude/.handoff-state || exit 0
 : >"$marker" || exit 0
 
+# T023: 台帳に書かれないまま締めに進むのを、引継ぎの差し戻しと同じ場所で止める。
+# 判定は neglect-check.sh に任せる（手がかりの正本を2箇所に置かないため）。
+ledger_warning=""
+if printf '%s' "$event" | "$(dirname "$0")/neglect-check.sh" --check; then
+  ledger_warning="yes"
+fi
+
 cat >&2 <<'MSG'
 このセッションの引継ぎがまだ記録されていません。docs/handoff.md を更新してください。
 
@@ -80,5 +87,14 @@ cat >&2 <<'MSG'
 
 この差し戻しは1セッションに1回だけです。
 MSG
+
+if [ -n "$ledger_warning" ]; then
+  cat >&2 <<'MSG'
+
+あわせて: docs/test-policy.md の Gate に触れた形跡がありますが、
+docs/neglected-log.md に何も書かれていません。日時・触れた Gate 番号・対象箇所の3点を
+書いてから締めてください（理由は不要です）。
+MSG
+fi
 
 exit 2
