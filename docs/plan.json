@@ -67,7 +67,7 @@
       "dependsOn": ["T001"],
       "files": ["docs/decisions.md"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -339,6 +339,34 @@
       "automation": "ci",
       "status": "done",
       "origin": "initial"
+    },
+    {
+      "id": "T028",
+      "title": "確かめ方の書き方が機械で弾かれることを/plan-initに明記する",
+      "deliverable": ".claude/skills/plan-init/SKILL.md に、確かめ方の書き方が機械で検査され、条件を満たさないと検証が落ちることと、その条件が書かれている状態",
+      "verify": [
+        ".claude/skills/plan-init/SKILL.md を開き、確かめ方が機械で検査されると書かれていることを確認する",
+        "書かれている条件が、src/plan.ts の validateVerifySteps の実際の判定と一致していることを確認する"
+      ],
+      "dependsOn": [],
+      "files": [".claude/skills/plan-init/SKILL.md"],
+      "automation": "ci",
+      "status": "done",
+      "origin": "added"
+    },
+    {
+      "id": "T029",
+      "title": "引継ぎ本文に自動記録の目印を書かない注意を/handoffに入れる",
+      "deliverable": ".claude/skills/handoff/SKILL.md に、docs/handoff.md の本文へ自動記録の目印そのものを書いてはいけないことが書かれている状態",
+      "verify": [
+        ".claude/skills/handoff/SKILL.md を開き、目印を本文に書かない注意があることを確認する",
+        "その注意が、書いた場合に何が起きるか（本文が切り落とされる）まで説明していることを確認する"
+      ],
+      "dependsOn": [],
+      "files": [".claude/skills/handoff/SKILL.md"],
+      "automation": "ci",
+      "status": "done",
+      "origin": "added"
     }
   ]
 }
