@@ -67,7 +67,7 @@
       "dependsOn": ["T001"],
       "files": ["docs/decisions.md"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -351,7 +351,7 @@
       "dependsOn": [],
       "files": [".claude/skills/plan-init/SKILL.md"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "added"
     },
     {
@@ -365,7 +365,7 @@
       "dependsOn": [],
       "files": [".claude/skills/handoff/SKILL.md"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "added"
     }
   ]

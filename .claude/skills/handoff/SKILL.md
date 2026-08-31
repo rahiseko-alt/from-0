@@ -15,7 +15,7 @@ description: docs/handoff.md をいまの状態に更新してコミットする
 
 1. `docs/handoff.md` を読み、現状との差分を把握する
 2. `git status` と `git log --oneline -10` で、このセッションの変更を確認する
-3. 下記の4節を書き換える（`<!-- session-end-stamp -->` 以降は自動記録なので触らない）
+3. 下記の4節を書き換える（末尾の自動記録＝`session-end-stamp` の節より後ろは触らない）
 4. `docs/handoff.md` をコミットする
 
 ## 書く内容
