@@ -59,7 +59,9 @@ BRANCH="$branch" HEAD_SHA="$head" CHANGED="$changed" STAMP="$stamp" node -e '
     "- 未コミットの変更:" +
     (changed ? "\n\n```\n" + changed + "\n```\n" : " なし\n");
 
-  const i = text.indexOf(MARK);
+  // 最初ではなく最後の目印で切る。引継ぎ本文がこの目印の文字列そのものに言及すると、
+  // indexOf では本文の途中で切ってしまい、締めるたびに末尾が壊れて重複が積もる（実際に起きた）。
+  const i = text.lastIndexOf(MARK);
   const next = (i === -1 ? text.trimEnd() + "\n\n" : text.slice(0, i)) + block;
 
   try {

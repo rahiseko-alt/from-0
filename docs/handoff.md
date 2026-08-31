@@ -95,24 +95,13 @@ statement`）。フックの中で `node -e` を使うときは関数で包む�
   `docs/decisions.md`「17.」
 - **`git push` がプロキシの 503（CONNECT tunnel failed）で失敗することがある。**
   そのまま再実行すれば通った。指数バックオフで数回リトライする
-- **`.claude/hooks/stop-hook-git-check.sh` 相当のフックが、`docs/handoff.md` 末尾の
-  自動スタンプ（`<!-- session-end-stamp -->` 以降）を書き換えるたびに「未コミットの変更」
-  として検出することがある。** 中身が記録時刻/HEADの更新だけなら `git checkout --
-docs/handoff.md` で戻してよい
-- 公式の `settings` ページだけは全文を読めていない（サイズ超過）
-
-<!-- session-end-stamp -->` 以降）を書き換えるたびに「未コミットの変更」
-
-として検出することがある。** 中身が記録時刻/HEADの更新だけなら `git checkout --
-docs/handoff.md` で戻してよい（実質的な引継ぎ内容の変更ではないため）
-
-- 公式の `settings` ページだけは全文を読めていない（サイズ超過）
-
-<!-- session-end-stamp -->` 以降）を書き換えるたびに「未コミットの変更」
-
-として検出することがある。** 中身が記録時刻/HEADの更新だけなら `git checkout --
-docs/handoff.md` で戻してよい（実質的な引継ぎ内容の変更ではないため）
-
+- **`docs/handoff.md` の末尾には、セッション終了時に自動記録の節が追記される。**
+  中身が記録時刻・ブランチ・HEAD だけなら、未コミット変更として検出されても
+  `git checkout -- docs/handoff.md` で戻してよい
+- **この引継ぎ文の本文に、自動記録の目印（`session-end-stamp` の HTML コメント）を
+  そのまま書かないこと。** 書くと自動記録がそこで本文を切り落とす。実際に3セッション分
+  末尾が壊れて重複が積もり、`main` にも混入した（`.claude/hooks/handoff-stamp.sh` は
+  最後の目印で切るように直したが、本文に書かないのが確実）
 - 公式の `settings` ページだけは全文を読めていない（サイズ超過）
 
 <!-- session-end-stamp -->
