@@ -1,0 +1,185 @@
+{
+  "goal": "docs/decisions.md「15.」に確定した5手段の未実装部分が全て配線され、非エンジニアが進捗・完了判定・見送りを実物で確認できる状態",
+  "items": [
+    {
+      "id": "T001",
+      "title": "並列実行をworktree/Workflowに委ねる",
+      "deliverable": "依存関係が無く触るファイルも重ならない複数の作業を、実際に隔離されたworktreeで同時に走らせる手順が明文化されている状態",
+      "verify": [
+        "docs/plan.json の中から、互いに依存せずファイルも重複しない項目を2つ選ぶ",
+        "Workflowツールのparallel()でその2項目を同時に走らせる",
+        "両方が完了したあとgit statusを見て、それぞれの変更ファイルが衝突していないことを確認する",
+        "手順がAGENTS.mdまたは.claude/skills/checkin/SKILL.mdに書かれていることを確認する"
+      ],
+      "dependsOn": [],
+      "files": ["AGENTS.md", ".claude/skills/checkin/SKILL.md"],
+      "automation": "ci",
+      "status": "todo",
+      "origin": "initial"
+    },
+    {
+      "id": "T002",
+      "title": "canRunInParallelの呼び出し口を作る",
+      "deliverable": "docs/plan.jsonのtodo項目から、今並列に進めてよい組み合わせを一覧できるコマンドまたはスキルができている状態",
+      "verify": [
+        "依存関係が無くファイルも重ならない2項目を含むdocs/plan.jsonを用意する",
+        "作ったコマンド/スキルを実行し、その2項目が並列候補として表示されることを確認する",
+        "依存関係がある項目やファイルが重なる項目が候補に出ないことを確認する"
+      ],
+      "dependsOn": ["T001"],
+      "files": ["src/plan.ts", ".claude/skills/checkin/SKILL.md"],
+      "automation": "ci",
+      "status": "todo",
+      "origin": "initial"
+    },
+    {
+      "id": "T003",
+      "title": "/goalによる実装中の自動継続を明文化する",
+      "deliverable": "plan.jsonの1項目に着手するとき、完了条件を/goalで宣言して自動継続させる手順がAGENTS.mdに書かれている状態",
+      "verify": [
+        "docs/plan.jsonの適当な項目のverify手順を完了条件として/goalに設定する",
+        "数ターン後に/goalが「満たした」と判定して自動的に止まることを確認する",
+        "この手順がAGENTS.mdに明文化されていることを確認する"
+      ],
+      "dependsOn": [],
+      "files": ["AGENTS.md"],
+      "automation": "ci",
+      "status": "todo",
+      "origin": "initial"
+    },
+    {
+      "id": "T004",
+      "title": "completion-checkerを/checkoutから自動的に呼ぶ",
+      "deliverable": "/checkoutを実行すると、今回着手した項目についてcompletion-checkerが自動的に呼ばれ、判定結果に応じてstatusが更新される状態",
+      "verify": [
+        "docs/plan.jsonの適当な項目を1つ完了させた状態で/checkoutを実行する",
+        "completion-checkerが自動的に呼ばれ、verify手順をなぞった証拠が出力されることを確認する",
+        "判定が通った場合はstatusがdoneに、通らない場合はtodoのままになることを確認する"
+      ],
+      "dependsOn": [],
+      "files": [".claude/skills/checkout/SKILL.md"],
+      "automation": "ci",
+      "status": "todo",
+      "origin": "initial"
+    },
+    {
+      "id": "T005",
+      "title": "verifyの書き方を機械的にチェックする",
+      "deliverable": "「テストが通る」のような、人間がたどれない書き方のverifyをvalidatePlanが拒否するようになっている状態",
+      "verify": [
+        "verifyに「テストが通る」とだけ書いた項目を含むdocs/plan.jsonを用意する",
+        "pnpm run testを実行し、validatePlanがこの項目をエラーとして検出することを確認する",
+        "人間がたどれる具体的な手順を書いた項目は通ることを確認する"
+      ],
+      "dependsOn": [],
+      "files": ["src/plan.ts", "src/plan.test.ts"],
+      "automation": "ci",
+      "status": "todo",
+      "origin": "initial"
+    },
+    {
+      "id": "T006",
+      "title": "進捗を表示するコマンドを作る",
+      "deliverable": "非エンジニアがAIに口頭で聞かなくても「今どこまで終わっているか」を確認できる手段ができている状態",
+      "verify": [
+        "docs/plan.jsonがある状態で新しいコマンド/スキルを実行する",
+        "初期項目・追加項目それぞれの完了数/全体数と、人間確認待ちの一覧が画面に表示されることを確認する",
+        "非エンジニアにこの画面を実際に見せ、今の進み具合を自分の言葉で説明できるか確認する"
+      ],
+      "dependsOn": [],
+      "files": ["src/plan.ts", ".claude/skills/checkin/SKILL.md"],
+      "automation": "human",
+      "status": "todo",
+      "origin": "initial"
+    },
+    {
+      "id": "T007",
+      "title": "/checkinがnextItemを実際に呼ぶ",
+      "deliverable": "/checkinを実行すると、文章の指示ではなくnextItem関数の戻り値がそのまま「次の1件」として提示される状態",
+      "verify": [
+        "依存関係を満たしたtodo項目が複数あるdocs/plan.jsonで/checkinを実行する",
+        "nextItemが返す項目が、次にやることとして画面に表示されることを確認する",
+        "依存先が未完了の項目が誤って選ばれないことを確認する"
+      ],
+      "dependsOn": ["T006"],
+      "files": [".claude/skills/checkin/SKILL.md"],
+      "automation": "ci",
+      "status": "todo",
+      "origin": "initial"
+    },
+    {
+      "id": "T008",
+      "title": "追記時の採番をnextIdに任せる",
+      "deliverable": "計画に項目を追記するとき、AIが手作業で番号を決めるのではなくnextId関数の戻り値がそのまま使われる状態",
+      "verify": [
+        "既存の項目があるdocs/plan.jsonに新しい項目を追記する",
+        "追記された項目のidが直前の最大値+1になっていることを確認する",
+        "pnpm run testでvalidatePlanが通ることを確認する"
+      ],
+      "dependsOn": [],
+      "files": ["src/plan.ts", "AGENTS.md"],
+      "automation": "ci",
+      "status": "todo",
+      "origin": "initial"
+    },
+    {
+      "id": "T009",
+      "title": "Routineで定期的に状態を確認し通知する",
+      "deliverable": "決めた間隔で自動的にdocs/plan.jsonの進捗とdocs/neglected-log.mdの件数を確認し、ゴール到達または見送り増加を人間に通知する仕組みができている状態",
+      "verify": [
+        "docs/plan.jsonとneglected-log.mdを確認するプロンプトでRoutineを1つ作成する",
+        "手動でRoutineを1回実行し、通知が実際に届くことを確認する",
+        "全項目doneの状態にしてもう一度実行し、通知内容がゴール到達を示す内容に変わることを確認する"
+      ],
+      "dependsOn": ["T006"],
+      "files": ["AGENTS.md"],
+      "automation": "human",
+      "status": "todo",
+      "origin": "initial"
+    },
+    {
+      "id": "T010",
+      "title": "見送り・失敗を書く行動を強制する",
+      "deliverable": "test-policy.mdのGateに触れたが破らなかった場面や失敗行動に気づいた場面で、実際に台帳へ書くことが強制されている状態",
+      "verify": [
+        "わざとGateに触れるが破らない状況を再現する",
+        "その場でneglected-log.mdまたはfailure-action-log.mdに実際に書き込まれることを確認する",
+        "書かずに/checkoutまで進めようとした場合に、フックまたは指示が引っかかることを確認する"
+      ],
+      "dependsOn": [],
+      "files": [".claude/hooks/handoff-check.sh", "AGENTS.md"],
+      "automation": "human",
+      "status": "todo",
+      "origin": "initial"
+    },
+    {
+      "id": "T011",
+      "title": "AskUserQuestionの使用をAGENTS.mdに明文化する",
+      "deliverable": "専門的な内容を聞くときは選択肢付きで聞く、という今の実践がAGENTS.mdに明文化されている状態",
+      "verify": [
+        "AGENTS.mdを開き、非エンジニア向けの聞き方のルールにAskUserQuestionの使用が明記されていることを確認する",
+        "実際にGitHub操作やCI障害など専門的な判断が必要な場面で、選択肢付きで聞いていることを確認する"
+      ],
+      "dependsOn": [],
+      "files": ["AGENTS.md"],
+      "automation": "ci",
+      "status": "todo",
+      "origin": "initial"
+    },
+    {
+      "id": "T012",
+      "title": "非エンジニアに答えられない聞き方を機械的に止める",
+      "deliverable": "専門用語だけで質問しようとした場合に、フックまたは検査が引っかかる仕組みができている状態",
+      "verify": [
+        "わざと専門用語だけの質問（例:「PR #35をrevertしますか？y/n」）をさせてみる",
+        "フックまたは検査がこれを検出し、書き直しを促すことを確認する",
+        "平易な説明＋選択肢の形式で聞き直した場合は通ることを確認する"
+      ],
+      "dependsOn": ["T011"],
+      "files": [".claude/hooks/question-style-check.sh", "AGENTS.md"],
+      "automation": "human",
+      "status": "todo",
+      "origin": "initial"
+    }
+  ]
+}
