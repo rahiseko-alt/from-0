@@ -25,7 +25,7 @@
         "依存関係やファイル重複がある項目は組として出ないことを確認する"
       ],
       "dependsOn": [],
-      "files": ["src/plan-cli.ts", "package.json"],
+      "files": ["src/plan-cli/parallel.ts", "package.json"],
       "automation": "ci",
       "status": "todo",
       "origin": "initial"
@@ -36,7 +36,7 @@
       "deliverable": "T002のコマンドを検証する単体テストがある状態",
       "verify": ["pnpm run testを実行し、新しいテストが通ることを確認する"],
       "dependsOn": ["T002"],
-      "files": ["src/plan-cli.test.ts"],
+      "files": ["src/plan-cli/parallel.test.ts"],
       "automation": "ci",
       "status": "todo",
       "origin": "initial"
@@ -66,7 +66,7 @@
       ],
       "dependsOn": ["T001"],
       "files": ["docs/decisions.md"],
-      "automation": "human",
+      "automation": "ci",
       "status": "todo",
       "origin": "initial"
     },
@@ -86,11 +86,13 @@
     },
     {
       "id": "T007",
-      "title": "/checkoutからcompletion-checkerを呼ぶよう書き換える",
-      "deliverable": "/checkoutの手順に、今回着手した項目についてcompletion-checkerを呼ぶことが明記されている状態",
+      "title": "「/checkoutでcompletion-checkerを呼ぶ」フローが実際に機能することを確認する",
+      "deliverable": ".claude/skills/checkout/SKILL.mdに既に書かれている完了判定フロー（completion-checker呼び出し→判定結果でstatus更新）が、書かれたとおりに動くことを実地で確認した記録がある状態",
       "verify": [
-        ".claude/skills/checkout/SKILL.mdに手順があることを確認する",
-        "実際に/checkoutを実行し、completion-checkerが呼ばれることを確認する"
+        "docs/plan.jsonの適当な項目を1つ完了させた状態で/checkoutを実行する",
+        "completion-checkerが自動的に呼ばれ、verify手順をなぞった証拠が出力されることを確認する",
+        "判定が通った場合はstatusがdoneに、通らない場合はtodoのままになることを確認する",
+        "automationがhumanの項目ではawaiting_humanになることを確認する"
       ],
       "dependsOn": [],
       "files": [".claude/skills/checkout/SKILL.md"],
@@ -99,26 +101,12 @@
       "origin": "initial"
     },
     {
-      "id": "T008",
-      "title": "判定結果でstatusを更新する手順を明記する",
-      "deliverable": "completion-checkerが「通った」ならdone、「通らなかった」ならtodoのままにする、という手順が明記されている状態",
-      "verify": [
-        ".claude/skills/checkout/SKILL.mdに手順があることを確認する",
-        "実際に1項目試し、判定どおりにstatusが更新されることを確認する"
-      ],
-      "dependsOn": ["T007"],
-      "files": [".claude/skills/checkout/SKILL.md"],
-      "automation": "ci",
-      "status": "todo",
-      "origin": "initial"
-    },
-    {
       "id": "T009",
       "title": "verifyの書き方を機械的にチェックする関数を追加する",
-      "deliverable": "「テストが通る」のような曖昧な書き方のverifyをvalidatePlanが拒否する状態",
+      "deliverable": "「テストが通る」のように対象コマンドや期待結果を示さない書き方のverifyをvalidatePlanが拒否する状態。ただし『pnpm run testを実行し、〜が通ることを確認する』のように対象と期待結果を示すものは許容する（テスト追加そのものが目的の項目まで拒否しない）",
       "verify": [
-        "曖昧な書き方のverifyを含むdocs/plan.jsonでpnpm run testを実行し、エラーになることを確認する",
-        "具体的な手順を書いた項目は通ることを確認する"
+        "対象コマンドも期待結果も書かれていない曖昧な書き方のverifyを含むdocs/plan.jsonでpnpm run testを実行し、エラーになることを確認する",
+        "docs/plan.jsonのT003・T010・T012のような『pnpm run testを実行し、〜を確認する』という書き方は通ることを確認する"
       ],
       "dependsOn": [],
       "files": ["src/plan.ts"],
@@ -146,7 +134,7 @@
         "コマンドを実行し、正しい数値と一覧が表示されることを確認する"
       ],
       "dependsOn": [],
-      "files": ["src/plan-cli.ts", "package.json"],
+      "files": ["src/plan-cli/progress.ts", "package.json"],
       "automation": "ci",
       "status": "todo",
       "origin": "initial"
@@ -157,19 +145,22 @@
       "deliverable": "T011のコマンドを検証する単体テストがある状態",
       "verify": ["pnpm run testで新しいテストが通ることを確認する"],
       "dependsOn": ["T011"],
-      "files": ["src/plan-cli.test.ts"],
+      "files": ["src/plan-cli/progress.test.ts"],
       "automation": "ci",
       "status": "todo",
       "origin": "initial"
     },
     {
       "id": "T013",
-      "title": "非エンジニア向けの進捗表示フォーマットを整える",
-      "deliverable": "数字の羅列ではなく、専門用語なしで「あと何割」が伝わる表示になっている状態",
-      "verify": ["表示結果を見て、専門用語を使わずに進み具合を説明できることを確認する"],
+      "title": "進捗表示から専門用語を無くす",
+      "deliverable": "表示にidやstatusのような内部用語がそのまま出ず、「終わった」「まだ」等の日本語の文章で進み具合が表現される状態",
+      "verify": [
+        "表示結果にsrc/plan.tsの内部フィールド名がそのまま出ていないことを確認する",
+        "完了数・全体数・残り数が日本語の文章として表示されていることを確認する"
+      ],
       "dependsOn": ["T011"],
-      "files": ["src/plan-cli.ts"],
-      "automation": "human",
+      "files": ["src/plan-cli/progress.ts"],
+      "automation": "ci",
       "status": "todo",
       "origin": "initial"
     },
@@ -179,7 +170,7 @@
       "deliverable": "実在の非エンジニアがこの画面を見て、今の進み具合を自分の言葉で説明できる状態",
       "verify": ["実際に画面を見せ、進み具合を説明してもらう", "説明できなければT013に戻って直す"],
       "dependsOn": ["T013"],
-      "files": ["src/plan-cli.ts"],
+      "files": ["src/plan-cli/progress.ts"],
       "automation": "human",
       "status": "todo",
       "origin": "initial"
@@ -192,7 +183,7 @@
         "依存を満たしたtodo項目が複数あるdocs/plan.jsonで/checkinを実行する",
         "nextItemの結果がそのまま次の1件として提示されることを確認する"
       ],
-      "dependsOn": ["T011"],
+      "dependsOn": ["T027"],
       "files": [".claude/skills/checkin/SKILL.md"],
       "automation": "ci",
       "status": "todo",
@@ -206,7 +197,7 @@
         "AGENTS.mdの記述を確認する",
         "実際に追記してみて番号が既存最大値+1になることを確認する"
       ],
-      "dependsOn": [],
+      "dependsOn": ["T017"],
       "files": ["AGENTS.md"],
       "automation": "ci",
       "status": "todo",
@@ -217,8 +208,8 @@
       "title": "nextIdを呼ぶCLIコマンドを追加する",
       "deliverable": "コマンドを実行すると、次に振るべき番号がわかる状態",
       "verify": ["コマンドを実行し、既存最大値+1が表示されることを確認する"],
-      "dependsOn": ["T016"],
-      "files": ["src/plan-cli.ts", "package.json"],
+      "dependsOn": [],
+      "files": ["src/plan-cli/next-id.ts", "package.json"],
       "automation": "ci",
       "status": "todo",
       "origin": "initial"
@@ -230,7 +221,7 @@
       "verify": ["claude.ai/code/routinesまたは/scheduleでRoutineが作成されていることを確認する"],
       "dependsOn": ["T011"],
       "files": ["AGENTS.md"],
-      "automation": "human",
+      "automation": "ci",
       "status": "todo",
       "origin": "initial"
     },
@@ -272,11 +263,14 @@
     {
       "id": "T022",
       "title": "Gate抵触検出フックを実装する",
-      "deliverable": "設計どおりのフックが実際に動く状態",
-      "verify": ["わざとGateに触れる状況を再現し、フックが反応することを確認する"],
+      "deliverable": "設計どおりのフックが実際に動き、.claude/settings.jsonに登録されて自動発火する状態",
+      "verify": [
+        "わざとGateに触れる状況を再現し、フックが反応することを確認する",
+        ".claude/settings.jsonのhooksにneglect-check.shが登録されていることを確認する"
+      ],
       "dependsOn": ["T021"],
-      "files": [".claude/hooks/neglect-check.sh"],
-      "automation": "human",
+      "files": [".claude/hooks/neglect-check.sh", ".claude/settings.json"],
+      "automation": "ci",
       "status": "todo",
       "origin": "initial"
     },
@@ -290,7 +284,7 @@
       ],
       "dependsOn": ["T022"],
       "files": [".claude/hooks/handoff-check.sh"],
-      "automation": "human",
+      "automation": "ci",
       "status": "todo",
       "origin": "initial"
     },
@@ -319,14 +313,30 @@
     {
       "id": "T026",
       "title": "質問スタイルを検査するフックを実装する",
-      "deliverable": "設計どおりのフックが実際に動く状態",
+      "deliverable": "設計どおりのフックが実際に動き、.claude/settings.jsonに登録されて自動発火する状態",
       "verify": [
         "専門用語だけの質問をさせてみて、フックが反応することを確認する",
-        "平易な説明＋選択肢の質問は通ることを確認する"
+        "平易な説明＋選択肢の質問は通ることを確認する",
+        ".claude/settings.jsonのhooksにquestion-style-check.shが登録されていることを確認する"
       ],
       "dependsOn": ["T025", "T024"],
-      "files": [".claude/hooks/question-style-check.sh"],
+      "files": [".claude/hooks/question-style-check.sh", ".claude/settings.json"],
       "automation": "human",
+      "status": "todo",
+      "origin": "initial"
+    },
+    {
+      "id": "T027",
+      "title": "nextItemを呼ぶCLIコマンドを追加する",
+      "deliverable": "コマンドを実行すると、依存を満たしたtodo項目の中から次に着手すべき1件がわかる状態",
+      "verify": [
+        "依存関係を満たしたtodo項目が複数あるdocs/plan.jsonでコマンドを実行する",
+        "正しい1件が表示されることを確認する",
+        "依存先が未完了の項目が選ばれないことを確認する"
+      ],
+      "dependsOn": [],
+      "files": ["src/plan-cli/next-item.ts", "package.json"],
+      "automation": "ci",
       "status": "todo",
       "origin": "initial"
     }
