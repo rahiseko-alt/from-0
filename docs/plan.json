@@ -97,7 +97,7 @@
       "dependsOn": [],
       "files": [".claude/skills/checkout/SKILL.md"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
