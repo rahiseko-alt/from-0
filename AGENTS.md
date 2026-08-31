@@ -118,7 +118,7 @@ export const meta = {
   description: 'docs/plan.json の独立した項目を同時に実装する',
 }; // meta に変数・関数呼び出しは書けない。スクリプトは TypeScript ではなく素の JavaScript
 
-const ITEMS = ['T002', 'T017']; // canRunInParallel で確かめた組だけを書く
+const ITEMS = ['T002', 'T009']; // canRunInParallel が true を返した組だけを書く
 const results = await parallel(
   ITEMS.map(
     (id) => () =>

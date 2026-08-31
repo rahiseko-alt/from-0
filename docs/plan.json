@@ -12,7 +12,7 @@
       "dependsOn": [],
       "files": ["AGENTS.md"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
