@@ -68,6 +68,43 @@ function isStringArray(value: unknown): value is string[] {
 }
 
 /**
+ * 「何をもって、できたと判断するか」を示す語。
+ * これが1つも無い確かめ方は、読んだ人が同じ手順をなぞれない。
+ */
+const EXPECTED_RESULT_MARKERS = ['確認', '確かめ', '説明してもらう'];
+
+/** 手順として成立する最低限の長さ。「テストが通る」のような一言を弾く。 */
+const MIN_VERIFY_STEP_LENGTH = 8;
+
+/**
+ * 確かめ方の書き方を検査する。
+ *
+ * 判定は**項目ごと**に行う。「index.html を開く」「送信ボタンを押す」のような
+ * 下ごしらえの手順には期待結果が無くて当然で、1手順ずつ見ると正当な書き方まで弾いてしまう。
+ * 見るのは「その項目の確かめ方のどこかに、できたと判断する根拠が書かれているか」。
+ */
+export function validateVerifySteps(steps: readonly string[]): string[] {
+  const errors: string[] = [];
+
+  for (const step of steps) {
+    if (step.trim().length < MIN_VERIFY_STEP_LENGTH) {
+      errors.push(`確かめ方「${step}」が短すぎます。何をどうすると何が起きるかを書いてください`);
+    }
+  }
+
+  const hasExpectedResult = steps.some((step) =>
+    EXPECTED_RESULT_MARKERS.some((marker) => step.includes(marker)),
+  );
+  if (!hasExpectedResult) {
+    errors.push(
+      '確かめ方に、何をもって「できた」と判断するかが書かれていません（例:「pnpm run test を実行し、新しいテストが通ることを確認する」）',
+    );
+  }
+
+  return errors;
+}
+
+/**
  * 計画ファイルを検証し、違反を全て返す。空配列なら妥当。
  *
  * 最初の違反で打ち切らないのは、書いた人が一度に全部直せるようにするため。
@@ -126,6 +163,10 @@ export function validatePlan(input: unknown): string[] {
       errors.push(
         `${where}: verify（確かめ方）が空です。確かめ方を書けない項目は粒度が大きすぎます`,
       );
+    } else {
+      for (const violation of validateVerifySteps(raw.verify)) {
+        errors.push(`${where}: ${violation}`);
+      }
     }
     if (!isStringArray(raw.dependsOn)) {
       errors.push(`${where}: dependsOn が文字列の配列ではありません`);
