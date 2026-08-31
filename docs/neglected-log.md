@@ -50,3 +50,10 @@
 - 触れたGate: `081 性能・運用`（通常利用で主要操作が実用不能なほど遅くないか）
 - 対象箇所: `package.json` の `plan:progress` / `plan:next` / `plan:next-id` / `plan:parallel`
 - 4本とも実行のたびに `pnpm run build` を先に走らせる
+
+### 2026-08-31 22:50 UTC
+
+- 触れたGate: `089 性能・運用`（主要な失敗を運用者が検知可能か）
+- 対象箇所: 週次 Routine（`trig_01LVCzPzXcTxdyGFdxtFQZSw`、無効化済み）と `docs/plan.json` の `T019` `T020`
+- 通知が手元に届かないまま、ユーザーの判断（レポートは不要）で決着させた。定期的に進み具合を
+  知らせる経路は現在ない
