@@ -233,7 +233,7 @@
       "dependsOn": ["T018"],
       "files": ["AGENTS.md"],
       "automation": "human",
-      "status": "awaiting_human",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -246,7 +246,7 @@
       "dependsOn": ["T019"],
       "files": ["AGENTS.md"],
       "automation": "human",
-      "status": "awaiting_human",
+      "status": "done",
       "origin": "initial"
     },
     {
