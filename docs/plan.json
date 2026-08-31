@@ -27,7 +27,7 @@
       "dependsOn": [],
       "files": ["src/plan-cli/parallel.ts", "package.json"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -38,7 +38,7 @@
       "dependsOn": ["T002"],
       "files": ["src/plan-cli/parallel.test.ts"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -52,7 +52,7 @@
       "dependsOn": ["T002"],
       "files": [".claude/skills/checkin/SKILL.md"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -111,7 +111,7 @@
       "dependsOn": [],
       "files": ["src/plan.ts"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -122,7 +122,7 @@
       "dependsOn": ["T009"],
       "files": ["src/plan.test.ts"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -136,7 +136,7 @@
       "dependsOn": [],
       "files": ["src/plan-cli/progress.ts", "package.json"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -147,7 +147,7 @@
       "dependsOn": ["T011"],
       "files": ["src/plan-cli/progress.test.ts"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -161,7 +161,7 @@
       "dependsOn": ["T011"],
       "files": ["src/plan-cli/progress.ts"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -172,7 +172,7 @@
       "dependsOn": ["T013"],
       "files": ["src/plan-cli/progress.ts"],
       "automation": "human",
-      "status": "todo",
+      "status": "awaiting_human",
       "origin": "initial"
     },
     {
@@ -186,7 +186,7 @@
       "dependsOn": ["T027"],
       "files": [".claude/skills/checkin/SKILL.md"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -200,7 +200,7 @@
       "dependsOn": ["T017"],
       "files": ["AGENTS.md"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -211,7 +211,7 @@
       "dependsOn": [],
       "files": ["src/plan-cli/next-id.ts", "package.json"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -222,7 +222,7 @@
       "dependsOn": ["T011"],
       "files": ["AGENTS.md"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -233,7 +233,7 @@
       "dependsOn": ["T018"],
       "files": ["AGENTS.md"],
       "automation": "human",
-      "status": "todo",
+      "status": "awaiting_human",
       "origin": "initial"
     },
     {
@@ -246,7 +246,7 @@
       "dependsOn": ["T019"],
       "files": ["AGENTS.md"],
       "automation": "human",
-      "status": "todo",
+      "status": "awaiting_human",
       "origin": "initial"
     },
     {
@@ -257,7 +257,7 @@
       "dependsOn": [],
       "files": ["docs/decisions.md"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -271,7 +271,7 @@
       "dependsOn": ["T021"],
       "files": [".claude/hooks/neglect-check.sh", ".claude/settings.json"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -285,7 +285,7 @@
       "dependsOn": ["T022"],
       "files": [".claude/hooks/handoff-check.sh"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -296,7 +296,7 @@
       "dependsOn": [],
       "files": ["AGENTS.md"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -307,7 +307,7 @@
       "dependsOn": [],
       "files": ["docs/decisions.md"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -322,7 +322,7 @@
       "dependsOn": ["T025", "T024"],
       "files": [".claude/hooks/question-style-check.sh", ".claude/settings.json"],
       "automation": "human",
-      "status": "todo",
+      "status": "awaiting_human",
       "origin": "initial"
     },
     {
@@ -337,7 +337,7 @@
       "dependsOn": [],
       "files": ["src/plan-cli/next-item.ts", "package.json"],
       "automation": "ci",
-      "status": "todo",
+      "status": "done",
       "origin": "initial"
     }
   ]
