@@ -172,7 +172,7 @@
       "dependsOn": ["T013"],
       "files": ["src/plan-cli/progress.ts"],
       "automation": "human",
-      "status": "awaiting_human",
+      "status": "done",
       "origin": "initial"
     },
     {
@@ -322,7 +322,7 @@
       "dependsOn": ["T025", "T024"],
       "files": [".claude/hooks/question-style-check.sh", ".claude/settings.json"],
       "automation": "human",
-      "status": "awaiting_human",
+      "status": "done",
       "origin": "initial"
     },
     {
