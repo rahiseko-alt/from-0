@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { nextCursor } from '../plan.js';
 import { formatDoctor } from './doctor.js';
 import { testItem, testPlan } from './fixture.js';
-import { formatEntry, formatStamp } from './gate-record.js';
+import { formatEntry, formatStamp, GATE_RECORDED_MARKER } from './gate-record.js';
 import { formatNextItem } from './next-item.js';
 import { buildSessionState } from './start.js';
 import { applyVerdict, formatVerdict } from './verdict.js';
@@ -116,6 +116,12 @@ describe('scripts/plan-cli.mjs の引数の受け取り', () => {
 describe('gate:record', () => {
   it('既存の記録と同じ日時の形にそろえる', () => {
     expect(formatStamp(new Date('2026-09-03T13:05:00Z'))).toBe('2026-09-03 13:05 UTC');
+  });
+
+  // クラウドのクローンには origin/main が無く、git の差分では「書いたか」を判定できない。
+  // 痕跡の置き場所は neglect-check.sh と揃っている必要があるので、ここで固定する。
+  it('書いた痕跡を、書き忘れ検出が見る場所に置く', () => {
+    expect(GATE_RECORDED_MARKER).toBe('.claude/.handoff-state/gate-recorded');
   });
 
   it('日時・Gate番号・対象箇所の3点を必ず含める', () => {

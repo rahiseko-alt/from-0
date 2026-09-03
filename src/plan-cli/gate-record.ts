@@ -1,4 +1,5 @@
-import { appendFileSync, existsSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 import { isMain } from './is-main.js';
 
@@ -11,6 +12,15 @@ import { isMain } from './is-main.js';
  * フック（`neglect-check.sh`）は書き忘れの最終検出に格下げしてある。
  */
 export const NEGLECT_LOG_PATH = 'docs/neglected-log.md';
+
+/**
+ * 台帳に書いた痕跡。`.claude/hooks/neglect-check.sh` がこれを見る。
+ *
+ * クラウドセッションのクローンには `origin/main` が無く、「台帳に追記したか」を
+ * git の差分だけでは判定できない（コミットしてしまうと差分が消える）。
+ * 書いた側が痕跡を残すほうが確実なので、ここで置く。gitignore 済み。
+ */
+export const GATE_RECORDED_MARKER = '.claude/.handoff-state/gate-recorded';
 
 export type GateAction = 'BACKLOG' | 'IGNORE' | 'NEARMISS';
 
@@ -70,6 +80,14 @@ if (isMain(import.meta.url)) {
       NEGLECT_LOG_PATH,
       formatEntry(new Date(), gate, action as GateAction, target, noteParts.join(' ')),
     );
+    // 書いた痕跡を残す。書き忘れの検出（neglect-check.sh）が git の差分を取れない
+    // 環境でも、ここを見れば「書いた」と分かる。失敗しても記録自体は成立している。
+    try {
+      mkdirSync(dirname(GATE_RECORDED_MARKER), { recursive: true });
+      writeFileSync(GATE_RECORDED_MARKER, '');
+    } catch {
+      /* 痕跡が残せなくても、台帳への追記は済んでいる */
+    }
     console.log(`${NEGLECT_LOG_PATH} に Gate ${gate} の記録を追記しました。`);
   }
 }
