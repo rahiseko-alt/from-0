@@ -28,7 +28,13 @@ function newestTypeScriptMtime(dir) {
   return newest;
 }
 
-const [name, ...args] = process.argv.slice(2);
+const [name, ...rawArgs] = process.argv.slice(2);
+
+// `pnpm run gate:record -- 087 BACKLOG "..."` の `--` は pnpm に食われず、そのまま
+// 引数として届く（pnpm 10 で確認）。そのまま渡すと第1引数が `--` になって全部ずれるため、
+// ここで1つだけ取り除く。`--` は引数の区切りであって値ではない。
+const args = rawArgs[0] === '--' ? rawArgs.slice(1) : rawArgs;
+
 if (name === undefined) {
   console.error(
     '使い方: node scripts/plan-cli.mjs <state|progress|next-item|next-id|doctor|start|verdict|parallel|gate-record|release-check> [引数]',

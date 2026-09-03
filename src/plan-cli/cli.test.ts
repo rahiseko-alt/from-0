@@ -100,6 +100,19 @@ describe('applyVerdict', () => {
   });
 });
 
+describe('scripts/plan-cli.mjs の引数の受け取り', () => {
+  // `pnpm run gate:record -- 087 ...` の `--` は pnpm に食われず、そのまま届く（pnpm 10 で確認）。
+  // 実際に「使い方」が出るだけで記録できない不具合になったので、ここで固定する。
+  it('先頭の -- を1つだけ取り除く', () => {
+    const strip = (raw: readonly string[]) => (raw[0] === '--' ? raw.slice(1) : [...raw]);
+    expect(strip(['--', '087', 'BACKLOG'])).toEqual(['087', 'BACKLOG']);
+    expect(strip(['087', 'BACKLOG'])).toEqual(['087', 'BACKLOG']);
+    // 値としての `--` を2つ渡された場合まで面倒を見ない（区切りは1つで足りる）
+    expect(strip(['--', '--'])).toEqual(['--']);
+    expect(strip([])).toEqual([]);
+  });
+});
+
 describe('gate:record', () => {
   it('既存の記録と同じ日時の形にそろえる', () => {
     expect(formatStamp(new Date('2026-09-03T13:05:00Z'))).toBe('2026-09-03 13:05 UTC');
