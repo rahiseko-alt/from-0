@@ -1,22 +1,46 @@
 /**
- * 全体計画ファイル（plan.json）の型と検証。
+ * 全体計画ファイル（plan.json）の型・検証・グラフ解析。
  *
- * 全体計画は一度だけ作り、以降は本文を書き換えない。変更してよいのは各項目の `status` と、
- * 末尾への新項目の追記だけ。この制約は人間の注意力では守れないため、ここで機械的に検証し
- * CI で毎回まわす。
+ * 計画は「今どこまで進んだか」を全員が同じ形で読むための土台。人間の注意力では守れない
+ * 制約（番号の不変・依存の整合・信号と実態の一致）を、ここで機械的に検証し CI で毎回まわす。
+ *
+ * 不変にするのは **id だけ**。`dependsOn` / `files` / `verify` / `deliverable` / `verifyBy` は
+ * 現実に合わせて更新してよい（履歴は Git が持っている）。id を消す・使い回す・振り直すことだけを
+ * 禁じる。過去のコミット・PR・台帳からの参照を壊さないため。
  */
-
-/** 確認手段。`ci` は自動で確かめられる、`human` は人間が実物を見るしかない。 */
-export type Automation = 'ci' | 'human';
 
 /**
- * 項目の状態。`awaiting_human` は AI 側の作業が終わり、人間の確認だけが残っている状態。
- * 溜めて一括で聞くため、完了とは別の状態として持つ。
+ * 確かめ方の担い手。
+ *
+ * - `ci`     — コマンド1本で確かめられる。`verifyCommand` が必須
+ * - `agent`  — 実物をなぞる必要があるが、AI が実行できる（ファイルを開く・出力を読む等）
+ * - `human`  — 実物を人間が見るしかない（受信箱・印刷結果・住所や金額の正しさ）
  */
-export type Status = 'todo' | 'awaiting_human' | 'done';
+export type VerifyBy = 'ci' | 'agent' | 'human';
+
+/**
+ * 項目の状態。
+ *
+ * - `todo`           未着手
+ * - `in_progress`    着手中。セッションをまたいでも、ここから再開する
+ * - `awaiting_human` AI 側は終わり、人間の確認だけが残っている
+ * - `blocked`        外部要因で進められない（相手待ち・仕様未定）
+ * - `verified`       独立した検証を通った。**依存を満たすのはこの状態だけ**
+ * - `dropped`        やらないと決めた。進捗の分母から外れ、下流を解放しない
+ *
+ * 「作り終えた」と「確かめた」を1つの値にまとめると、確かめていないものが完了として数えられる。
+ * 旧 `done` を廃したのはこのため。
+ */
+export type Status = 'todo' | 'in_progress' | 'awaiting_human' | 'blocked' | 'verified' | 'dropped';
 
 /** 当初計画か、途中で追加されたか。進捗を別枠で表示するために持つ。 */
 export type Origin = 'initial' | 'added';
+
+/** 進捗の分母に数えない状態。取り下げた項目は「終わっていない」でも「終わった」でもない。 */
+const UNCOUNTED: readonly Status[] = ['dropped'];
+
+/** これ以上動かない状態。ここに入っていない項目が残っていれば、計画は未完。 */
+const TERMINAL: readonly Status[] = ['verified', 'dropped'];
 
 export interface PlanItem {
   /** 不変の識別子。`T` + 3 桁以上の数字。一度振ったら二度と変えない。 */
@@ -32,12 +56,14 @@ export interface PlanItem {
   verify: string[];
   /** 依存する項目の id。 */
   dependsOn: string[];
-  /** 触るファイル。並列可否の判定に使うため、重複を隠さず全て挙げる。 */
+  /** 触るファイル。作業範囲の関門（scope-guard）が参照するため、隠さず全て挙げる。 */
   files: string[];
-  automation: Automation;
+  verifyBy: VerifyBy;
+  /** `verifyBy` が `ci` のときだけ必須。実際に走らせるコマンド。 */
+  verifyCommand?: string;
   status: Status;
   origin: Origin;
-  /** 追加項目のみ。どの項目の作業中に判明したか。 */
+  /** 追加項目のみ。どの項目の作業中に判明したか。取り下げたなら、その判断も書く。 */
   note?: string;
 }
 
@@ -47,16 +73,38 @@ export interface Plan {
   items: PlanItem[];
 }
 
+/** 進捗の内訳。分母は取り下げを除いた件数。 */
+export interface Tally {
+  verified: number;
+  countable: number;
+}
+
 export interface Progress {
-  initial: { done: number; total: number };
-  added: { done: number; total: number };
-  /** 人間の確認待ち。溜まったらまとめて聞く。 */
+  initial: Tally;
+  added: Tally;
+  total: Tally;
+  /** 着手中の項目の id。 */
+  inProgress: string[];
+  /** 人間の確認待ち。溜めてまとめて聞く。 */
   awaitingHuman: string[];
+  /** 外部要因で止まっている項目の id。 */
+  blocked: string[];
+  /** 取り下げた項目の id。分母に入れない。 */
+  dropped: string[];
+  /** 確かめ方の担い手ごとの未確認件数。「デグレ0」の根拠になるかを判断するために使う。 */
+  unverifiedBy: Record<VerifyBy, number>;
 }
 
 const ID_PATTERN = /^T\d{3,}$/;
-const AUTOMATIONS: readonly Automation[] = ['ci', 'human'];
-const STATUSES: readonly Status[] = ['todo', 'awaiting_human', 'done'];
+const VERIFY_BYS: readonly VerifyBy[] = ['ci', 'agent', 'human'];
+const STATUSES: readonly Status[] = [
+  'todo',
+  'in_progress',
+  'awaiting_human',
+  'blocked',
+  'verified',
+  'dropped',
+];
 const ORIGINS: readonly Origin[] = ['initial', 'added'];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -143,7 +191,7 @@ export function validatePlan(input: unknown): string[] {
       seen.add(id);
 
       // 番号は不変・単調増加。追加は必ず末尾へ最大値+1 で行うため、
-      // 順序が崩れていること自体が「既存項目を書き換えた」証拠になる。
+      // 順序が崩れていること自体が「番号を振り直した」証拠になる。
       const current = Number(id.slice(1));
       if (current <= previousNumber) {
         errors.push(
@@ -174,12 +222,23 @@ export function validatePlan(input: unknown): string[] {
     if (!isStringArray(raw.files) || raw.files.length === 0) {
       errors.push(`${where}: files（触るファイル）が空です`);
     }
-    if (!AUTOMATIONS.includes(raw.automation as Automation)) {
-      errors.push(`${where}: automation は ci か human です（実際: ${String(raw.automation)}）`);
+    if (!VERIFY_BYS.includes(raw.verifyBy as VerifyBy)) {
+      errors.push(`${where}: verifyBy は ci / agent / human です（実際: ${String(raw.verifyBy)}）`);
+    }
+    // `ci` を名乗るなら、実際に走らせるコマンドを持っていること。
+    // 「自動で確かめられる」という信号だけがあってコマンドが無い状態を作らせない。
+    if (raw.verifyBy === 'ci') {
+      if (typeof raw.verifyCommand !== 'string' || raw.verifyCommand.trim() === '') {
+        errors.push(
+          `${where}: verifyBy が ci の項目には verifyCommand（実際に走らせるコマンド）が必要です`,
+        );
+      }
+    } else if (raw.verifyCommand !== undefined) {
+      errors.push(`${where}: verifyCommand は verifyBy が ci の項目にだけ書けます`);
     }
     if (!STATUSES.includes(raw.status as Status)) {
       errors.push(
-        `${where}: status は todo / awaiting_human / done です（実際: ${String(raw.status)}）`,
+        `${where}: status は ${STATUSES.join(' / ')} です（実際: ${String(raw.status)}）`,
       );
     }
     if (!ORIGINS.includes(raw.origin as Origin)) {
@@ -213,38 +272,201 @@ export function parsePlan(input: unknown): Plan {
 }
 
 /**
- * 進捗を数える。計画ファイルに進捗を書き込まないのは、複数の AI が同時に働くとき
- * 合計値の書き換えが競合するため。数えれば必ず正しい値になる。
+ * 進捗を数える。計画ファイルに合計値を書き込まないのは、複数の AI が同時に働くとき
+ * 書き換えが競合するため。数えれば必ず正しい値になる。
+ *
+ * 分母から取り下げ（dropped）を外す。取り下げを完了として数えると、やらないと決めたものが
+ * 達成率を押し上げる（実際に3項目でこれが起きた）。
  */
 export function countProgress(plan: Plan): Progress {
-  const tally = (origin: Origin) => {
-    const items = plan.items.filter((item) => item.origin === origin);
-    return { done: items.filter((item) => item.status === 'done').length, total: items.length };
-  };
+  const tally = (items: readonly PlanItem[]): Tally => ({
+    verified: items.filter((item) => item.status === 'verified').length,
+    countable: items.filter((item) => !UNCOUNTED.includes(item.status)).length,
+  });
+  const ids = (status: Status) =>
+    plan.items.filter((item) => item.status === status).map((item) => item.id);
+
+  const unverifiedBy: Record<VerifyBy, number> = { ci: 0, agent: 0, human: 0 };
+  for (const item of plan.items) {
+    if (TERMINAL.includes(item.status)) continue;
+    unverifiedBy[item.verifyBy] += 1;
+  }
+
   return {
-    initial: tally('initial'),
-    added: tally('added'),
-    awaitingHuman: plan.items
-      .filter((item) => item.status === 'awaiting_human')
-      .map((item) => item.id),
+    initial: tally(plan.items.filter((item) => item.origin === 'initial')),
+    added: tally(plan.items.filter((item) => item.origin === 'added')),
+    total: tally(plan.items),
+    inProgress: ids('in_progress'),
+    awaitingHuman: ids('awaiting_human'),
+    blocked: ids('blocked'),
+    dropped: ids('dropped'),
+    unverifiedBy,
   };
 }
 
 /**
- * 次に着手する項目を選ぶ。未着手のうち、依存先が全て完了しているもののうち先頭。
- * セッション開始時の「未完の最優先を1つ選ぶ」がこれにあたる。
+ * 次の一手。`undefined` を返さないのは、「全部終わった」と「詰まっている」と「計画が壊れている」を
+ * 呼び出し側が区別できないまま同じ扱いをしてしまうため（実際にそうなっていた）。
  */
-export function nextItem(plan: Plan): PlanItem | undefined {
-  const done = new Set(plan.items.filter((item) => item.status === 'done').map((item) => item.id));
-  return plan.items.find(
-    (item) => item.status === 'todo' && item.dependsOn.every((dep) => done.has(dep)),
+export type PlanCursor =
+  | { kind: 'READY'; item: PlanItem }
+  | { kind: 'WAITING_HUMAN'; ids: string[] }
+  | { kind: 'BLOCKED'; ids: string[] }
+  | { kind: 'BROKEN'; problems: string[] }
+  | { kind: 'COMPLETED' };
+
+/** 依存を満たす状態。**`verified` だけ**。作っただけの項目に下流を積ませない。 */
+function verifiedIds(plan: Plan): Set<string> {
+  return new Set(plan.items.filter((item) => item.status === 'verified').map((item) => item.id));
+}
+
+/** いま着手できる項目。着手中のものを先に返す（再開が最優先）。 */
+export function readyItems(plan: Plan): PlanItem[] {
+  const satisfied = verifiedIds(plan);
+  const ready = plan.items.filter(
+    (item) =>
+      (item.status === 'todo' || item.status === 'in_progress') &&
+      item.dependsOn.every((dep) => satisfied.has(dep)),
   );
+  return [
+    ...ready.filter((item) => item.status === 'in_progress'),
+    ...ready.filter((item) => item.status === 'todo'),
+  ];
+}
+
+/** 次に着手する項目を、理由つきで返す。 */
+export function nextCursor(plan: Plan): PlanCursor {
+  const problems = diagnosePlan(plan);
+  if (problems.length > 0) return { kind: 'BROKEN', problems };
+
+  const ready = readyItems(plan);
+  const first = ready[0];
+  if (first !== undefined) return { kind: 'READY', item: first };
+
+  const awaiting = plan.items.filter((item) => item.status === 'awaiting_human');
+  if (awaiting.length > 0) {
+    return { kind: 'WAITING_HUMAN', ids: awaiting.map((item) => item.id) };
+  }
+
+  const remaining = plan.items.filter((item) => !TERMINAL.includes(item.status));
+  if (remaining.length > 0) return { kind: 'BLOCKED', ids: remaining.map((item) => item.id) };
+
+  return { kind: 'COMPLETED' };
+}
+
+/**
+ * 依存グラフの構造的な壊れを検出する。ここで挙がるものは、どれだけ作業しても解けない。
+ *
+ * `nextCursor` はこれが空でないかぎり項目を返さない。壊れた計画の上で作業を続けると、
+ * 「進んでいるように見えるが、決して終わらない」状態になる。
+ */
+export function diagnosePlan(plan: Plan): string[] {
+  const problems: string[] = [];
+  const byId = new Map(plan.items.map((item) => [item.id, item]));
+
+  for (const item of plan.items) {
+    for (const dep of item.dependsOn) {
+      if (!byId.has(dep)) {
+        problems.push(`${item.id} の依存先 ${dep} が計画に存在しません`);
+      }
+    }
+  }
+
+  // 取り下げた項目は永久に verified にならない。それに依存している生きた項目も永久に着手できない。
+  for (const item of plan.items) {
+    if (TERMINAL.includes(item.status)) continue;
+    for (const dep of item.dependsOn) {
+      if (byId.get(dep)?.status === 'dropped') {
+        problems.push(
+          `${item.id} は取り下げた ${dep} に依存しています（${item.id} も取り下げるか、依存を外してください）`,
+        );
+      }
+    }
+  }
+
+  for (const cycle of findCycles(plan)) {
+    problems.push(`依存が循環しています: ${cycle.join(' → ')}`);
+  }
+
+  return problems;
+}
+
+/**
+ * 依存の循環を全て挙げる。返すのは循環に含まれる id の並びで、先頭 id を2度目に踏んだ形。
+ * 深さ優先で辿り、いま辿っている経路上に戻ったら循環とみなす。
+ */
+export function findCycles(plan: Plan): string[][] {
+  const byId = new Map(plan.items.map((item) => [item.id, item]));
+  const state = new Map<string, 'visiting' | 'done'>();
+  const path: string[] = [];
+  const cycles: string[][] = [];
+  const seenCycles = new Set<string>();
+
+  const walk = (id: string): void => {
+    if (state.get(id) === 'done') return;
+    if (state.get(id) === 'visiting') {
+      const start = path.indexOf(id);
+      const cycle = [...path.slice(start), id];
+      // 同じ循環を、入り口を変えて何度も報告しない。
+      const key = [...cycle].slice(0, -1).sort().join(',');
+      if (!seenCycles.has(key)) {
+        seenCycles.add(key);
+        cycles.push(cycle);
+      }
+      return;
+    }
+    state.set(id, 'visiting');
+    path.push(id);
+    for (const dep of byId.get(id)?.dependsOn ?? []) {
+      if (byId.has(dep)) walk(dep);
+    }
+    path.pop();
+    state.set(id, 'done');
+  };
+
+  for (const item of plan.items) walk(item.id);
+  return cycles;
+}
+
+/**
+ * `plan:doctor` の中身。構造的な壊れに加えて、
+ * 「未完の項目が残っているのに、誰も着手できず、誰の確認も待っていない」行き止まりを見る。
+ */
+export function doctorPlan(plan: Plan): string[] {
+  const problems = [...diagnosePlan(plan)];
+  if (problems.length > 0) return problems;
+
+  const remaining = plan.items.filter((item) => !TERMINAL.includes(item.status));
+  if (remaining.length === 0) return problems;
+
+  const stuck =
+    readyItems(plan).length === 0 &&
+    remaining.every((item) => item.status !== 'awaiting_human' && item.status !== 'blocked');
+  if (stuck) {
+    problems.push(
+      `未完の項目が ${remaining.length} 件残っていますが、着手できる項目が1件もありません（${remaining
+        .map((item) => item.id)
+        .join(', ')}）`,
+    );
+  }
+  return problems;
+}
+
+/**
+ * 前の版から消えた・番号を振り直した id を挙げる。
+ * 1つのファイルだけを見ても検出できないため、呼び出し側が過去の版を渡す。
+ */
+export function findRemovedIds(previous: readonly string[], current: readonly string[]): string[] {
+  const now = new Set(current);
+  return previous.filter((id) => !now.has(id));
 }
 
 /**
  * 2 つの項目を同時に進めてよいか。
- * 依存関係がなく、触るファイルも重ならないときだけ並列にできる。
- * worktree で隔離しても main へのマージ時に衝突するため、ファイルの重複も基準に含める。
+ *
+ * **並列は現在凍結中**（`AGENTS.md`「並列で進める」）。この判定は依存とファイルの重複しか
+ * 見ておらず、スキーマ・外部 API・環境変数・生成物のような共有資源を見ていない。
+ * 凍結を解くときは、その宣言を計画に足してからにすること。
  */
 export function canRunInParallel(a: PlanItem, b: PlanItem): boolean {
   if (a.id === b.id) return false;

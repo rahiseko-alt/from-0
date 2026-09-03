@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { countProgress, nextItem, parsePlan, validatePlan } from './plan.js';
+import { countProgress, doctorPlan, nextCursor, parsePlan, validatePlan } from './plan.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const examplePath = join(repoRoot, 'docs', 'plan.example.json');
@@ -19,29 +19,45 @@ describe('docs/plan.example.json', () => {
     expect(validatePlan(read(examplePath))).toEqual([]);
   });
 
-  it('人間が確認するしかない項目を含んでいる（2段階の書き分けの見本になっている）', () => {
+  it('確かめ方の担い手を3種類とも含んでいる（書き分けの見本になっている）', () => {
     const plan = parsePlan(read(examplePath));
-    expect(plan.items.some((item) => item.automation === 'human')).toBe(true);
-    expect(plan.items.some((item) => item.automation === 'ci')).toBe(true);
+    const kinds = new Set(plan.items.map((item) => item.verifyBy));
+    expect([...kinds].sort()).toEqual(['agent', 'ci', 'human']);
   });
 
-  it('依存先が未完了の項目は次の一手に選ばれない', () => {
-    const plan = parsePlan(read(examplePath));
-    const next = nextItem(plan);
-    expect(next?.id).toBe('T003');
+  it('見本の依存グラフが壊れていない', () => {
+    expect(doctorPlan(parsePlan(read(examplePath)))).toEqual([]);
+  });
+
+  it('依存先が未確認の項目は次の一手に選ばれない', () => {
+    const cursor = nextCursor(parsePlan(read(examplePath)));
+    expect(cursor.kind === 'READY' && cursor.item.id).toBe('T003');
   });
 
   it('当初計画と追加分を分けて数えられる', () => {
     const progress = countProgress(parsePlan(read(examplePath)));
-    expect(progress.initial.total).toBeGreaterThan(0);
-    expect(progress.added.total).toBeGreaterThan(0);
+    expect(progress.initial.countable).toBeGreaterThan(0);
+    expect(progress.added.countable).toBeGreaterThan(0);
+  });
+});
+
+// C1: 雛形には計画ファイルを同梱しない。同梱すると、複製した直後に /plan-init が
+// 「既に存在する」と拒み、plan:next が「着手できる項目がありません」を返して工程が始まらない。
+// from-0 自身が作った計画は docs/history/ に退避してある。
+describe('雛形の初期状態', () => {
+  it('docs/plan.json を同梱していない', () => {
+    expect(existsSync(planPath)).toBe(false);
   });
 });
 
 // 実際の計画ファイルは、このリポジトリを雛形として使い始めてから /plan-init で作られる。
-// 存在するときだけ検証する。これが「番号は不変・追記のみ」を CI で守らせる本体。
+// 存在するときだけ検証する。これが「番号は不変・依存は健全」を CI で守らせる本体。
 describe.skipIf(!existsSync(planPath))('docs/plan.json', () => {
   it('計画ファイルが検証を通る', () => {
     expect(validatePlan(read(planPath))).toEqual([]);
+  });
+
+  it('依存グラフに循環も行き止まりもない', () => {
+    expect(doctorPlan(parsePlan(read(planPath)))).toEqual([]);
   });
 });

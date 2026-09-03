@@ -3,9 +3,14 @@ import { describe, expect, it } from 'vitest';
 import {
   canRunInParallel,
   countProgress,
+  diagnosePlan,
+  doctorPlan,
+  findCycles,
+  findRemovedIds,
+  nextCursor,
   nextId,
-  nextItem,
   parsePlan,
+  readyItems,
   validatePlan,
   validateVerifySteps,
   type Plan,
@@ -19,11 +24,18 @@ function item(overrides: Partial<PlanItem> & Pick<PlanItem, 'id'>): PlanItem {
     verify: ['docs/plan.json を開く', '中身が書かれていることを確認する'],
     dependsOn: [],
     files: [`${overrides.id}.html`],
-    automation: 'ci',
+    verifyBy: 'ci',
+    verifyCommand: 'pnpm run test',
     status: 'todo',
     origin: 'initial',
     ...overrides,
   };
+}
+
+/** 人が実物を見るしかない項目。`verifyCommand` は持てない。 */
+function humanItem(overrides: Partial<PlanItem> & Pick<PlanItem, 'id'>): PlanItem {
+  const { verifyCommand: _ignored, ...rest } = item({ verifyBy: 'human', ...overrides });
+  return rest;
 }
 
 function plan(items: PlanItem[]): Plan {
@@ -40,7 +52,7 @@ describe('validatePlan', () => {
     expect(errors.some((e) => e.includes('重複'))).toBe(true);
   });
 
-  it('id が昇順でないことを検出する（既存項目の書き換えの兆候）', () => {
+  it('id が昇順でないことを検出する（番号を振り直した兆候）', () => {
     const errors = validatePlan(plan([item({ id: 'T002' }), item({ id: 'T001' })]));
     expect(errors.some((e) => e.includes('昇順'))).toBe(true);
   });
@@ -65,12 +77,26 @@ describe('validatePlan', () => {
     expect(errors.some((e) => e.includes('自分自身'))).toBe(true);
   });
 
-  it('automation と status の値を制限する', () => {
+  it('verifyBy と status の値を制限する', () => {
     const errors = validatePlan(
-      plan([item({ id: 'T001', automation: 'browser' as never, status: '済' as never })]),
+      plan([item({ id: 'T001', verifyBy: 'browser' as never, status: '済' as never })]),
     );
-    expect(errors.some((e) => e.includes('automation'))).toBe(true);
+    expect(errors.some((e) => e.includes('verifyBy'))).toBe(true);
     expect(errors.some((e) => e.includes('status'))).toBe(true);
+  });
+
+  // C4: 「自動で確かめられる」という信号だけがあって、実際に走らせるコマンドが無い状態を作らせない。
+  it('ci を名乗る項目に実際のコマンドが無ければ弾く', () => {
+    const { verifyCommand: _omitted, ...withoutCommand } = item({ id: 'T001' });
+    const errors = validatePlan(plan([withoutCommand]));
+    expect(errors.some((e) => e.includes('verifyCommand'))).toBe(true);
+  });
+
+  it('ci 以外の項目にコマンドが書かれていれば弾く', () => {
+    const errors = validatePlan(
+      plan([{ ...humanItem({ id: 'T001' }), verifyCommand: 'pnpm run test' }]),
+    );
+    expect(errors.some((e) => e.includes('verifyCommand'))).toBe(true);
   });
 
   it('ゴールが空の計画を弾く', () => {
@@ -93,41 +119,157 @@ describe('countProgress', () => {
   it('当初計画と追加分を分けて数える', () => {
     const progress = countProgress(
       plan([
-        item({ id: 'T001', status: 'done' }),
+        item({ id: 'T001', status: 'verified' }),
         item({ id: 'T002', status: 'todo' }),
-        item({ id: 'T003', status: 'done', origin: 'added' }),
+        item({ id: 'T003', status: 'verified', origin: 'added' }),
       ]),
     );
-    expect(progress.initial).toEqual({ done: 1, total: 2 });
-    expect(progress.added).toEqual({ done: 1, total: 1 });
+    expect(progress.initial).toEqual({ verified: 1, countable: 2 });
+    expect(progress.added).toEqual({ verified: 1, countable: 1 });
   });
 
   it('人間の確認待ちを完了に数えない', () => {
-    const progress = countProgress(
-      plan([item({ id: 'T001', status: 'awaiting_human', automation: 'human' })]),
-    );
-    expect(progress.initial).toEqual({ done: 0, total: 1 });
+    const progress = countProgress(plan([humanItem({ id: 'T001', status: 'awaiting_human' })]));
+    expect(progress.initial).toEqual({ verified: 0, countable: 1 });
     expect(progress.awaitingHuman).toEqual(['T001']);
+  });
+
+  // 取り下げを完了として数えると、やらないと決めたものが達成率を押し上げる（実際に3項目で起きた）。
+  it('取り下げた項目は分母からも分子からも外す', () => {
+    const progress = countProgress(
+      plan([
+        item({ id: 'T001', status: 'verified' }),
+        item({ id: 'T002', status: 'dropped' }),
+        item({ id: 'T003', status: 'todo' }),
+      ]),
+    );
+    expect(progress.initial).toEqual({ verified: 1, countable: 2 });
+    expect(progress.dropped).toEqual(['T002']);
+  });
+
+  it('残りの確かめ方の内訳を数える（「全部緑」をどこまで信じてよいかの材料）', () => {
+    const progress = countProgress(
+      plan([
+        item({ id: 'T001', status: 'todo' }),
+        humanItem({ id: 'T002', status: 'awaiting_human' }),
+        item({ id: 'T003', status: 'verified' }),
+      ]),
+    );
+    expect(progress.unverifiedBy).toEqual({ ci: 1, agent: 0, human: 1 });
   });
 });
 
-describe('nextItem', () => {
-  it('依存先が完了していない項目は選ばない', () => {
-    const chosen = nextItem(
+describe('nextCursor', () => {
+  it('依存先が終わっていない項目は選ばない', () => {
+    const cursor = nextCursor(
       plan([item({ id: 'T001', status: 'todo' }), item({ id: 'T002', dependsOn: ['T001'] })]),
     );
-    expect(chosen?.id).toBe('T001');
+    expect(cursor).toMatchObject({ kind: 'READY' });
+    expect(cursor.kind === 'READY' && cursor.item.id).toBe('T001');
   });
 
-  it('依存先が完了していれば選ぶ', () => {
-    const chosen = nextItem(
-      plan([item({ id: 'T001', status: 'done' }), item({ id: 'T002', dependsOn: ['T001'] })]),
+  // 「作り終えた」ではなく「確かめた」だけが下流を解放する。
+  it('依存先が verified なら選ぶ', () => {
+    const cursor = nextCursor(
+      plan([item({ id: 'T001', status: 'verified' }), item({ id: 'T002', dependsOn: ['T001'] })]),
     );
-    expect(chosen?.id).toBe('T002');
+    expect(cursor.kind === 'READY' && cursor.item.id).toBe('T002');
   });
 
-  it('確認待ちの項目は選び直さない', () => {
-    expect(nextItem(plan([item({ id: 'T001', status: 'awaiting_human' })]))).toBeUndefined();
+  it('着手中の項目を、未着手より先に返す（再開が最優先）', () => {
+    const cursor = nextCursor(
+      plan([item({ id: 'T001' }), item({ id: 'T002', status: 'in_progress' })]),
+    );
+    expect(cursor.kind === 'READY' && cursor.item.id).toBe('T002');
+  });
+
+  it('確認待ちしか残っていなければ WAITING_HUMAN を返す', () => {
+    const cursor = nextCursor(plan([humanItem({ id: 'T001', status: 'awaiting_human' })]));
+    expect(cursor).toEqual({ kind: 'WAITING_HUMAN', ids: ['T001'] });
+  });
+
+  it('外の事情で止まっている項目しか残っていなければ BLOCKED を返す', () => {
+    const cursor = nextCursor(plan([item({ id: 'T001', status: 'blocked' })]));
+    expect(cursor).toEqual({ kind: 'BLOCKED', ids: ['T001'] });
+  });
+
+  it('全部片付いていれば COMPLETED を返す', () => {
+    const cursor = nextCursor(
+      plan([item({ id: 'T001', status: 'verified' }), item({ id: 'T002', status: 'dropped' })]),
+    );
+    expect(cursor).toEqual({ kind: 'COMPLETED' });
+  });
+
+  it('計画が壊れていれば項目を返さない', () => {
+    const cursor = nextCursor(
+      plan([item({ id: 'T001', dependsOn: ['T002'] }), item({ id: 'T002', dependsOn: ['T001'] })]),
+    );
+    expect(cursor.kind).toBe('BROKEN');
+  });
+
+  // 受入 8: 取り下げは下流を解放しない。
+  it('取り下げた項目に依存する項目は着手可能にならない', () => {
+    const target = plan([
+      item({ id: 'T001', status: 'dropped' }),
+      item({ id: 'T002', dependsOn: ['T001'] }),
+    ]);
+    expect(readyItems(target)).toEqual([]);
+    expect(nextCursor(target).kind).toBe('BROKEN');
+  });
+});
+
+describe('diagnosePlan / doctorPlan', () => {
+  it('循環依存を検出する', () => {
+    const cycles = findCycles(
+      plan([item({ id: 'T001', dependsOn: ['T002'] }), item({ id: 'T002', dependsOn: ['T001'] })]),
+    );
+    expect(cycles.length).toBe(1);
+  });
+
+  it('同じ循環を入り口違いで二重に報告しない', () => {
+    const problems = diagnosePlan(
+      plan([
+        item({ id: 'T001', dependsOn: ['T002'] }),
+        item({ id: 'T002', dependsOn: ['T003'] }),
+        item({ id: 'T003', dependsOn: ['T001'] }),
+      ]),
+    );
+    expect(problems.filter((p) => p.includes('循環')).length).toBe(1);
+  });
+
+  it('取り下げた項目への依存を検出する', () => {
+    const problems = diagnosePlan(
+      plan([item({ id: 'T001', status: 'dropped' }), item({ id: 'T002', dependsOn: ['T001'] })]),
+    );
+    expect(problems.some((p) => p.includes('取り下げた'))).toBe(true);
+  });
+
+  it('壊れていない計画では何も返さない', () => {
+    expect(
+      doctorPlan(plan([item({ id: 'T001' }), item({ id: 'T002', dependsOn: ['T001'] })])),
+    ).toEqual([]);
+  });
+
+  // C6: 「全部終わった」と「詰まっている」を同じ扱いにしない。
+  it('未完の項目が残っているのに誰も着手できない行き止まりを検出する', () => {
+    const problems = doctorPlan(
+      plan([
+        item({ id: 'T001', status: 'verified' }),
+        item({ id: 'T002', status: 'todo', dependsOn: ['T003'] }),
+        item({ id: 'T003', status: 'todo', dependsOn: ['T002'] }),
+      ]),
+    );
+    expect(problems.length).toBeGreaterThan(0);
+  });
+});
+
+describe('findRemovedIds', () => {
+  it('前の版から消えた id を挙げる', () => {
+    expect(findRemovedIds(['T001', 'T002'], ['T001', 'T003'])).toEqual(['T002']);
+  });
+
+  it('増えただけなら何も挙げない', () => {
+    expect(findRemovedIds(['T001'], ['T001', 'T002'])).toEqual([]);
   });
 });
 

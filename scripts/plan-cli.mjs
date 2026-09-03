@@ -31,7 +31,7 @@ function newestTypeScriptMtime(dir) {
 const [name, ...args] = process.argv.slice(2);
 if (name === undefined) {
   console.error(
-    '使い方: node scripts/plan-cli.mjs <progress|next-item|next-id|parallel> [計画ファイル]',
+    '使い方: node scripts/plan-cli.mjs <state|progress|next-item|next-id|doctor|start|verdict|parallel|gate-record|release-check> [引数]',
   );
   process.exit(2);
 }

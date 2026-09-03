@@ -8,8 +8,12 @@
 #
 # 発火条件（すべて満たしたときだけ）:
 #   1. git リポジトリである
-#   2. 作業ツリーに変更がある
+#   2. 引継ぎが古い（未コミットの変更がある、または引継ぎを最後に更新した後で
+#      このブランチ独自のコミットが積まれている）
 #   3. このセッションでまだ差し戻していない
+#
+# 2 を「作業ツリーに変更があるか」だけで見ていた頃は、**コミットしてしまえば素通り**した。
+# 引継ぎを書かずにコミットまで済ませるのが一番ありがちな抜け方なので、そこを塞いでいる。
 #
 # 2回目以降は差し戻さない。毎ターン止めると作業にならないため。
 
@@ -36,8 +40,26 @@ cwd=$(
 cd "${cwd:-${CLAUDE_PROJECT_DIR:-.}}" || exit 0
 git rev-parse --git-dir >/dev/null 2>&1 || exit 0
 
-# 変更が無ければ引き継ぐことも無い
-[ -n "$(git status --porcelain 2>/dev/null)" ] || exit 0
+stale=""
+
+# 未コミットの変更があれば、当然まだ引き継げていない。
+[ -n "$(git status --porcelain 2>/dev/null)" ] && stale="yes"
+
+# コミット済みでも、引継ぎを最後に更新した後にこのブランチ独自のコミットが積まれていれば古い。
+# origin/main に既にあるコミットは数えない（main を眺めるだけのセッションで鳴らさないため）。
+if [ -z "$stale" ]; then
+  last=$(git log -1 --format=%H -- docs/handoff.md 2>/dev/null || true)
+  if [ -n "$last" ]; then
+    if git rev-parse --verify --quiet origin/main >/dev/null 2>&1; then
+      newer=$(git rev-list --count "$last..HEAD" --not origin/main 2>/dev/null || echo 0)
+    else
+      newer=$(git rev-list --count "$last..HEAD" 2>/dev/null || echo 0)
+    fi
+    [ "${newer:-0}" -gt 0 ] && stale="yes"
+  fi
+fi
+
+[ -n "$stale" ] || exit 0
 
 session_id=$(
   printf '%s' "$event" | node -e '

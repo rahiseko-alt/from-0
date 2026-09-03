@@ -15,7 +15,7 @@ description: docs/handoff.md をいまの状態に更新してコミットする
 
 1. `docs/handoff.md` を読み、現状との差分を把握する
 2. `git status` と `git log --oneline -10` で、このセッションの変更を確認する
-3. 下記の4節を書き換える（末尾の自動記録＝`session-end-stamp` の節より後ろは触らない）
+3. 下記の4節を書き換える
 4. `docs/handoff.md` をコミットする
 
 ## 書く内容
@@ -40,16 +40,18 @@ description: docs/handoff.md をいまの状態に更新してコミットする
 - 一時的な情報。次のセッションで無意味になるものは書かない
 - **`AGENTS.md`/`docs/decisions.md` に既にある恒久的なリポジトリのルール。** 二重管理は
   食い違いの元になる。参照させるだけにする
+- **進み具合の数字。** `pnpm run plan:progress` が数えて出すので、書くと必ず古くなる
+- **いまの工程。** `pnpm run plan:state` が判定するので、書くと必ず古くなる
 
 確度の低い記述には `[曖昧]` を付けてください。
 
-## 本文に書いてはいけない文字列
+## セッション終了時の自動記録について
 
-**自動記録の目印（`session-end-stamp` という名前の HTML コメント）そのものを、
-`docs/handoff.md` の本文に書かないでください。** セッション終了時に
-`.claude/hooks/handoff-stamp.sh` はこの目印を探して、そこから後ろを自動記録で置き換えます。
-本文の途中に同じ文字列があると、**そこから下の本文がまるごと切り落とされます**
-（実際に3セッション分の末尾が壊れ、断片の重複が `main` にも混入しました）。
+`.claude/hooks/handoff-stamp.sh` は、ブランチ・HEAD・未コミットの変更を
+**`.claude/.session-end.md`（gitignore 済み・手元だけ）** に書きます。
+`docs/handoff.md` には触れません。
 
-目印に触れる必要があるときは、`session-end-stamp` と名前だけを書くか、「末尾の自動記録」と
-呼んでください。
+以前はこの内容を `docs/handoff.md` の末尾に直接書いていましたが、SessionEnd の後に
+commit も push も行われないため、その追記は origin に届きませんでした。届かない情報を
+引継ぎ文に混ぜると「書いてあるのに次のセッションからは見えない」食い違いになります。
+**永続化は `/checkout`（commit して main へマージするところまで）の責任です。**
