@@ -25,7 +25,7 @@ describe('parallelPairs', () => {
     expect(parallelPairs(plan)).toEqual([]);
   });
 
-  it('依存先が未完了の項目は候補にしない（着手できないため）', () => {
+  it('依存先が未確認の項目は候補にしない（着手できないため）', () => {
     const plan = testPlan([
       testItem({ id: 'T001' }),
       testItem({ id: 'T002', dependsOn: ['T003'] }),
@@ -35,31 +35,34 @@ describe('parallelPairs', () => {
     expect(pairs).toEqual(['T001+T003']);
   });
 
-  it('依存先が完了していれば候補になる', () => {
+  it('依存先が確認済みなら候補になる', () => {
     const plan = testPlan([
-      testItem({ id: 'T001', status: 'done' }),
+      testItem({ id: 'T001', status: 'verified' }),
       testItem({ id: 'T002', dependsOn: ['T001'] }),
       testItem({ id: 'T003' }),
     ]);
     expect(parallelPairs(plan).map(([a, b]) => `${a.id}+${b.id}`)).toEqual(['T002+T003']);
   });
 
-  it('完了済みの項目は候補にしない', () => {
-    const plan = testPlan([testItem({ id: 'T001', status: 'done' }), testItem({ id: 'T002' })]);
+  it('終わった項目は候補にしない', () => {
+    const plan = testPlan([testItem({ id: 'T001', status: 'verified' }), testItem({ id: 'T002' })]);
     expect(parallelPairs(plan)).toEqual([]);
   });
 });
 
 describe('formatParallelPairs', () => {
-  it('組が無いときは1つずつ進めるよう促す', () => {
-    expect(formatParallelPairs([])).toContain('1つずつ');
+  // 並列は凍結中。組が挙がっても「やってよい」と読ませない。
+  it('組が無いときも凍結中であることを先に伝える', () => {
+    const text = formatParallelPairs([]);
+    expect(text).toContain('1つずつ');
+    expect(text).toContain('止めてあります');
   });
 
-  it('組があるときは両方の id と見出しを出す', () => {
+  it('組があるときも凍結の断りを先に出す', () => {
     const a = testItem({ id: 'T001' });
     const b = testItem({ id: 'T002' });
     const text = formatParallelPairs([[a, b]]);
-    expect(text).toContain('T001 と T002');
+    expect(text.indexOf('止めてあります')).toBeLessThan(text.indexOf('T001 と T002'));
     expect(text).toContain(a.title);
     expect(text).toContain(b.title);
   });

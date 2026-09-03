@@ -12,8 +12,9 @@
       ],
       "dependsOn": [],
       "files": ["index.html"],
-      "automation": "ci",
-      "status": "done",
+      "verifyBy": "ci",
+      "verifyCommand": "pnpm run test -- index",
+      "status": "verified",
       "origin": "initial"
     },
     {
@@ -23,8 +24,9 @@
       "verify": ["index.html を開く", "見出しが指定した色で表示されていることを確認する"],
       "dependsOn": [],
       "files": ["style.css"],
-      "automation": "ci",
-      "status": "done",
+      "verifyBy": "ci",
+      "verifyCommand": "pnpm run test -- style",
+      "status": "verified",
       "origin": "initial"
     },
     {
@@ -38,7 +40,7 @@
       ],
       "dependsOn": ["T001"],
       "files": ["about.html", "index.html"],
-      "automation": "ci",
+      "verifyBy": "agent",
       "status": "todo",
       "origin": "initial"
     },
@@ -53,7 +55,8 @@
       ],
       "dependsOn": ["T002"],
       "files": ["contact.html"],
-      "automation": "ci",
+      "verifyBy": "ci",
+      "verifyCommand": "pnpm run test -- contact",
       "status": "todo",
       "origin": "initial"
     },
@@ -68,10 +71,26 @@
       ],
       "dependsOn": ["T004"],
       "files": ["contact.html"],
-      "automation": "human",
+      "verifyBy": "human",
       "status": "todo",
       "origin": "added",
       "note": "T004 の作業中に、送信先が決まっていないことが判明した"
+    },
+    {
+      "id": "T006",
+      "title": "採用ページ",
+      "deliverable": "募集職種と応募先が載ったページ",
+      "verify": [
+        "トップページの「採用情報」を押す",
+        "採用ページが開くことを確認する",
+        "応募先のメールアドレスが載っていることを確認する"
+      ],
+      "dependsOn": ["T001"],
+      "files": ["recruit.html"],
+      "verifyBy": "agent",
+      "status": "dropped",
+      "origin": "initial",
+      "note": "今年は採用しないと決まったため取り下げ（2026-09-03）。分母から外れる"
     }
   ]
 }

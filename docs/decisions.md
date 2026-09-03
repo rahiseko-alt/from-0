@@ -1044,3 +1044,110 @@ AI の判断で勝手に掘り返したのではない）。
 **リリース前の判断**: `docs/test-policy.md` の Release Gate（001〜080 ALL YES）を阻害する
 問題は見つからなかった。残る4件はいずれも 081〜100 の範囲で、記録どおり実運用上の
 支障になっていない。
+
+### 28. 外部レビュー報告への対応（2026-09-03）
+
+第三者レビュー（`from0reviewreport.md`、Codex 監査を統合した改訂版 v2）の指摘に対応した。
+指摘の骨子は **「流れは文書として存在するが、部品同士が状態機械として接続されていない」**。
+以下は指摘ごとの採否と、実際に入れたもの。
+
+#### 採用した指摘と対応
+
+| 指摘                                                  | 区分 | 入れたもの                                                                                                                                                       |
+| ----------------------------------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1 雛形に完成済みの `docs/plan.json` が同梱されている | 判断 | `docs/history/plan.from-0.json` へ退避。`src/plan.file.test.ts` が**同梱されていないこと**を検査する                                                             |
+| `done` が「検証済み」と「取り下げ」を区別できない     | 判断 | `Status` を6値に拡張（`verified` / `dropped` / `in_progress` / `blocked` を追加、`done` は廃止）。依存を満たすのは `verified` だけ。分母から `dropped` を外す    |
+| C4 `automation: ci` が実 CI と未接続                  | 判断 | `automation` を `verifyBy: ci \| agent \| human` に置換。`ci` は `verifyCommand` 必須（`validatePlan` が弾く）                                                   |
+| C6 循環依存・デッドロック未検出                       | 判断 | `findCycles` / `diagnosePlan` / `doctorPlan` と `pnpm run plan:doctor`                                                                                           |
+| C6 `nextItem` が「全完了」も「詰まり」も `undefined`  | 判断 | `nextCursor` が5値を返す（`READY` / `WAITING_HUMAN` / `BLOCKED` / `BROKEN` / `COMPLETED`）                                                                       |
+| 中央制御が無い（今どの工程か）                        | 判断 | `src/plan-state.ts` の `decidePhase` と `pnpm run plan:state`。SessionStart フックが結果を `additionalContext` で差し込む                                        |
+| 「1セッション1項目」「範囲外禁止」を止める装置が無い  | 判断 | `.claude/.session-state.json` ＋ `pnpm run plan:start` ＋ `PreToolUse` の `scope-guard.sh`                                                                       |
+| C5 「計画は不変」の二重矛盾                           | 判断 | 不変制約を **`id` のみ**に縮小。他の欄は現実に合わせて更新可（履歴は Git）。`plan:doctor` が `git show HEAD:` と比較して消えた id を検出                         |
+| 作った本人が完了を判定できてしまう                    | 判断 | `.claude/.verdict/<id>.json` ＋ `pnpm run plan:verdict` ＋ `PreToolUse` の `verified-guard.sh`。`adversary` を新設し2役に                                        |
+| H14 handoff 強制が clean tree ですり抜ける            | 判断 | `handoff-check.sh` の判定を「未コミットの変更 **または** 引継ぎ更新後のブランチ独自コミット」に変更                                                              |
+| H15 SessionEnd stamp が origin に届かない             | 判断 | 書き先を `.claude/.session-end.md`（gitignore）へ格下げ。`docs/handoff.md` には触れない。目印による本文切り落とし事故も同時に消えた                              |
+| C8 Release Gate に実行装置なし・YES に証拠不要        | 判断 | `docs/release-review.json` ＋ `src/release.ts` ＋ `pnpm run release:check`。PASS は `evidence` 必須、N/A は `reason` 必須、**判定漏れは UNKNOWN 扱いで公開不可** |
+| C9 test-policy が Triage と Release の2役             | 判断 | Gate 表は1つのまま、手順を `/issue-triage`（1件）と `/release-review`（製品全体）に分離                                                                          |
+| C11 「デグレ0」がカバレッジ無し                       | 判断 | `Progress.unverifiedBy` で残りの担い手別件数を出す。`/plan-verify` は未照合が残るなら「完了」と報告しない                                                        |
+| 完成後のフローが接続されていない                      | 判断 | `plan:state` が `FINAL_VERIFY_REQUIRED → NEGLECT_REVIEW_REQUIRED → RELEASE_GATE_REQUIRED → RELEASE_READY` へ自動遷移。`/release` が通しで実行                    |
+| H16 並列安全判定が `files` のみ                       | 判断 | **並列を凍結**。`plan:parallel` は凍結の断りを先に出す。解除条件を `AGENTS.md` に明記                                                                            |
+| H17 README が存在しないスキルを参照                   | 判断 | `/run-skill-generator` `/verify` `/goal` の参照を削除                                                                                                            |
+| H13 transcript の語検索は安全装置にならない           | 判断 | 語検索フックを**書き忘れの最終検出**に格下げし、記録の本体を `pnpm run gate:record` に移した                                                                     |
+
+#### 採用しなかった指摘
+
+- **`plan:doctor` を `pnpm run check` に入れる** — 見送り。`check` から `dist` のビルドを
+  誘発するとコミット前の所要時間が伸びる。代わりに **`src/plan.file.test.ts` が
+  `docs/plan.json` の存在時に `validatePlan` と `doctorPlan` を回す**ので、CI の検出力は同じ。
+  `git show HEAD:` との id 比較だけは CI（浅いクローン）で当てにできないため `plan:doctor` 専用
+- **Goal Coverage Review を `/plan-init` 直後に必須化** — `/plan-init` に手順として書いたが、
+  機械的な強制はしていない。「項目集合がゴールを覆っているか」は機械では判定できず、
+  強制するなら人間の確認になる。`/release` の最終ゴール受入が最後の砦
+
+#### 実地で確認した記録（2026-09-03）
+
+**フックとコマンドは、実際にイベントを流して発火を確認した。** 同じ確認を繰り返す必要はない。
+
+`scope-guard.sh`（`PreToolUse` に模擬 JSON を流した）
+
+| 対象                       | 期待   | 結果                                           |
+| -------------------------- | ------ | ---------------------------------------------- |
+| 範囲内 `src/plan.ts`       | 通る   | `exit 0`                                       |
+| 範囲外 `src/index.ts`      | 止まる | `exit 2`。直し方（`files` を先に更新）を出した |
+| 常時許可 `docs/handoff.md` | 通る   | `exit 0`                                       |
+
+**さらに、模擬ではない発火も観測した。** 検証用に置いた `.claude/.session-state.json` を
+消し忘れたまま `docs/decisions.md` を編集しようとしたところ、この関門が実際に `Edit` を
+止めた。**書いた本人が、意図せず自分で踏んだ。** 解除は `pnpm run plan:stop`。
+
+`verified-guard.sh`
+
+| 状況                                | 期待   | 結果                                   |
+| ----------------------------------- | ------ | -------------------------------------- |
+| 判定の記録なし                      | 止まる | `exit 2`「判定の記録がありません」     |
+| `checker` だけ                      | 止まる | `exit 2`「adversary が通していません」 |
+| `checker` ＋ `adversary`            | 通る   | `exit 0`                               |
+| `verifyBy: human` で `checker` のみ | 通る   | `exit 0`（壊す役を省く設計どおり）     |
+| `docs/plan.json` 以外の編集         | 素通り | `exit 0`                               |
+
+`plan:state`（工程が自動で進むか。**受入テスト 13 / 14 にあたる**）
+
+```text
+READY → GLOBAL_VERIFY_REQUIRED → FINAL_VERIFY_REQUIRED → RELEASE_GATE_REQUIRED
+```
+
+最後の項目を `verified` にした時点で `FINAL_VERIFY_REQUIRED` へ自動で進み、
+**「次は何をしますか」で止まらないことを確認した。**
+
+`plan:doctor` は循環依存を検出して `exit 1`、`release:check` は判定漏れ79件を UNKNOWN として
+数えて `exit 1`。どちらも**黙って成功しない**。
+
+#### 自分の仕組みに引っかかって見つけた不具合（2026-09-03）
+
+**どちらもフックの差し戻しがきっかけで見つかった。** 実装した本人が、書いたばかりの関門に
+実際に止められている。
+
+| 不具合                                                         | 原因                                                                                                    | 直し方                                                                                 |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `pnpm run gate:record -- 087 ...` が「使い方」を出すだけだった | `--` が pnpm に食われず引数として届き、第1引数が `--` になって全部ずれていた（pnpm 10）                 | `scripts/plan-cli.mjs` で先頭の `--` を1つ除く。回帰テストを追加                       |
+| `neglect-check.sh` がこの環境で**必ず**誤検出していた          | 基準の `origin/main` がローカルに無く `HEAD` にフォールバック。「コミット済み＝差分なし」で判定が空振り | `gate:record` が痕跡を残し、フックがそれを見る。基準が取れないとき `HEAD` で代用しない |
+
+**`origin/main` が無いのはクラウドセッションの既定の状態**（`git branch -r` が作業ブランチ
+1本だけ）。ローカルの対話セッションでは再現しないため、書いている時点では気づけなかった。
+**`origin/main` を基準にする判定は、取れなかったときの振る舞いを必ず決めること。**
+
+なお、後者は Gate 096（不要な警告が大量発生していないか）に該当し、`docs/neglected-log.md`
+にも記録した。**同じ Gate で2回目**（1回目は 2026-08-31 の同ファイル）。`docs/test-policy.md`
+の「同じ Gate・同じ箇所の2回目は設計問題」に照らすと、**語の一致で止める方式そのものが
+筋が悪い**という判断を裏づけている。今回それを「書き忘れの最終検出」へ格下げし、記録の本体を
+`gate:record` に移したのは、この線に沿った変更でもある。
+
+#### 未検証（実地で一周させていない）
+
+- `[曖昧]` SessionStart の `additionalContext` 注入は、次のセッション冒頭に
+  `plan:state` の結果が出ることで確認できたが、**計画がある状態での注入内容は未確認**
+  （確認時点では `PLAN_REQUIRED` だった）
+- `[曖昧]` `adversary` に `isolation: worktree` を既定で付けたが、親の会話を察する余地が
+  完全に切れるかは未確認。コスト増との比較も未計測
+- レビュー報告 6章の「最終受入テスト（雛形を End-to-End で1周）」20点は**未実施**。
+  1周成功するまで、この雛形を「完成した開発システム」として扱わないこと

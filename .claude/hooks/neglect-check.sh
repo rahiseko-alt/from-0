@@ -8,6 +8,10 @@
 # 会話の意味は判定しない。LLM を呼ばず、語の有無だけを見る。
 # 誤検出は許容する。書かない放置より、たまに余計に聞かれるほうが安い。
 #
+# **これは書き忘れの最終検出であって、安全装置ではない。** 会話に語が現れなければ素通りする
+# （書いたつもりの言葉を使わなければ検出されない）。台帳を埋める本体は
+# `pnpm run gate:record`（記録を1コマンドにして、書く側の手数を減らすほう）。
+#
 # 引数に --check を渡すと、差し戻しメッセージを出さずに判定結果だけを返す
 # （0 = 書き漏らしている / 1 = 問題なし）。handoff-check.sh から呼ばれる。
 
@@ -42,13 +46,34 @@ git rev-parse --git-dir >/dev/null 2>&1 || exit 0
 ledger="docs/neglected-log.md"
 [ -f "$ledger" ] || exit 0
 
-# この作業（ブランチ or 作業ツリー）で台帳に追記があれば、書き漏らしではない。
-base="origin/main"
-git rev-parse --verify --quiet "$base" >/dev/null 2>&1 || base="HEAD"
-if ! git diff --quiet "$base" -- "$ledger" 2>/dev/null; then
+# この作業で台帳に追記があれば、書き漏らしではない。手がかりは3つ。
+#
+# 1. 作業ツリーに未コミットの追記がある
+# 2. 既定ブランチとの差分に台帳が入っている
+# 3. このコンテナで `pnpm run gate:record` が実行された痕跡がある
+#
+# 3 が要るのは、**クラウドセッションのクローンに `origin/main` が無い**ため。
+# 以前は基準を取れないと `HEAD` にフォールバックしていたが、それは「コミット済みの
+# 変更は常に差分なし」を意味し、判定が空振りして**必ず誤検出**していた（実際に踏んだ）。
+# 基準が取れないときは、書いた側が残す痕跡のほうを見る。
+
+# 未コミットの追記
+if ! git diff --quiet -- "$ledger" 2>/dev/null; then
   exit 1
 fi
-if ! git diff --quiet -- "$ledger" 2>/dev/null; then
+
+# gate:record を通した痕跡（gitignore 済み。コンテナに閉じる）
+[ -e ".claude/.handoff-state/gate-recorded" ] && exit 1
+
+# 既定ブランチとの差分。取れないときは比較しない（無理に HEAD で代用しない）
+base=""
+for candidate in origin/main origin/master; do
+  if git rev-parse --verify --quiet "$candidate" >/dev/null 2>&1; then
+    base="$candidate"
+    break
+  fi
+done
+if [ -n "$base" ] && ! git diff --quiet "$base" -- "$ledger" 2>/dev/null; then
   exit 1
 fi
 

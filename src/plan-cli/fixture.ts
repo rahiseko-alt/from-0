@@ -5,10 +5,11 @@ export function testItem(overrides: Partial<PlanItem> & Pick<PlanItem, 'id'>): P
   return {
     title: `${overrides.id} の見出し`,
     deliverable: 'できるもの',
-    verify: ['docs/plan.json を開く', '中身を見る'],
+    verify: ['docs/plan.json を開く', '中身を見て確認する'],
     dependsOn: [],
     files: [`src/${overrides.id}.ts`],
-    automation: 'ci',
+    verifyBy: 'ci',
+    verifyCommand: 'pnpm run test',
     status: 'todo',
     origin: 'initial',
     ...overrides,

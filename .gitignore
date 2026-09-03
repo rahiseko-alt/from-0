@@ -42,6 +42,9 @@ CLAUDE.local.md
 .claude/agent-memory-local/
 .claude/worktrees/
 .claude/.handoff-state/
+.claude/.session-state.json
+.claude/.verdict/
+.claude/.session-end.md
 
 # Codex
 .codex/

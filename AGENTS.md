@@ -41,33 +41,60 @@
 
 ## 全体計画（`docs/plan.json`）
 
-複数セッション・複数 AI でひとつのゴールへ向かうときの土台です。**まだ存在しない場合は
+複数セッション・複数 AI でひとつのゴールへ向かうときの土台です。**雛形には同梱していません。
 `/plan-init` で一度だけ作ります。** 形式の見本は `docs/plan.example.json`、型と検証は
 `src/plan.ts`（`pnpm run test` で毎回検証される）。
 
-- **計画は一度作ったら本文を書き換えない。** できるのは各項目の `status` を変えることと、
-  **末尾への追記**だけ。**既存項目の書き換え・削除・番号の振り直しは禁止**。番号は不変で、
-  過去のコミット・PR・台帳からの参照を壊さないため
-- **追記する番号は手で決めない。`pnpm run plan:next-id` の結果を使う。** 目で最大値を
-  探すと、飛ばした番号や重複が入る
-- **1セッション = 1項目。** 一気に進めない。1項目の大きさは「end-to-end の確かめ方を
-  書ける大きさ」。確かめ方が書けない項目は粒度が大きすぎる
-- **着手したら、その項目の `deliverable` を `/goal` で宣言する。** 例:
-  `/goal T011 の deliverable を満たす`。実装した本人とは別の評価モデルが毎ターン
-  「満たした／まだ／不可能」を判定し、満たすまでターンが続く。**`/goal` は着手時の
-  宣言であって完了判定ではない。** 完了は `/checkout` の `completion-checker` が決める
-- **セッションごとの実行計画はファイルに残さない。** 毎回「未着手のうち依存先が済んでいる
-  先頭の1つ」を選べば決まるため、書き残す必要がない。選ぶのは目視ではなく
-  `pnpm run plan:next`、進み具合は `pnpm run plan:progress`、同時に進められる組は
-  `pnpm run plan:parallel`
-- **作った本人が完了を判定しない。** `/checkout` で `completion-checker` サブエージェントを
-  呼び、`status` も git 履歴も見ずに `verify` の手順だけをなぞらせ、証拠を出させる
-- **並列にしてよいのは、依存関係がなく、かつ触るファイルも重ならない項目だけ**（手順は
-  「並列で進める」）。worktree で隔離しても `main` へのマージ時に衝突する
+### いまどの工程にいるかは、コマンドが決める
+
+**自分で思い出さないでください。** セッションの冒頭で `.claude/hooks/session-start.sh` が
+`pnpm run plan:state` を実行し、結果を差し込みます。工程は次の順に進み、飛ばせません。
+
+```text
+PLAN_REQUIRED → READY / WORKING → (WAITING_HUMAN / BLOCKED)
+  → GLOBAL_VERIFY_REQUIRED → FINAL_VERIFY_REQUIRED
+  → NEGLECT_REVIEW_REQUIRED → RELEASE_GATE_REQUIRED → RELEASE_READY
+```
+
+**最後の項目が終わっても「次は何をしますか」と聞かない。** `plan:state` が
+`FINAL_VERIFY_REQUIRED` 以降を返したら `/release` へ進みます。
+
+### 状態の意味
+
+| `status`         | 意味                                                 |
+| ---------------- | ---------------------------------------------------- |
+| `todo`           | 未着手                                               |
+| `in_progress`    | 着手中。セッションをまたいでもここから再開する       |
+| `awaiting_human` | AI 側は終わり、人間の確認だけが残っている            |
+| `blocked`        | 外部要因で進められない                               |
+| `verified`       | 独立した検証を通った。**依存を満たすのはこれだけ**   |
+| `dropped`        | やらないと決めた。**分母から外れ、下流を解放しない** |
+
+「作り終えた」と「確かめた」を1つの値にすると、確かめていないものが完了として数えられます。
+取り下げを完了として数えると、やらないと決めたものが達成率を押し上げます（実際に3項目で起きた）。
+
+`verifyBy` は確かめ方の担い手です。`ci`（コマンド1本。`verifyCommand` 必須）/
+`agent`（AI が実物をなぞる）/ `human`（人が実物を見るしかない）。
+
+### 守ること
+
+- **不変なのは `id` だけ。** 消す・使い回す・振り直すことは禁止（過去のコミット・PR・台帳からの
+  参照が壊れる）。`dependsOn` / `files` / `verify` / `deliverable` / `verifyBy` は現実に合わせて
+  更新してよい。履歴は Git が持っている。やらないと決めたら削除ではなく `dropped`
+- **追記する番号は手で決めない。`pnpm run plan:next-id` の結果を使う**
+- **1セッション = 1項目。** 着手したら `pnpm run plan:start <id>` で作業範囲を固定する。
+  範囲外のファイルは `.claude/hooks/scope-guard.sh` が止める。広げたくなったら
+  **先に `docs/plan.json` の `files` を直してから** `plan:start` をやり直す
+- **セッションごとの実行計画はファイルに残さない。** 選ぶのは目視ではなく `pnpm run plan:next`、
+  進み具合は `pnpm run plan:progress`、計画の壊れは `pnpm run plan:doctor`
+- **作った本人が完了を判定しない。** `/checkout` で `completion-checker`（`verify` をなぞる）と
+  `adversary`（`deliverable` を壊す）の**2つ**を通し、`pnpm run plan:verdict` で記録してから
+  `verified` にする。記録の無い `verified` は `.claude/hooks/verified-guard.sh` が止める
 - **進捗はファイルに書かない。数えて出す。** 同時に働く AI が合計値を書き換えると競合する
-- **10項目「済」が増えるごとに `/plan-verify`（全体照合）**。「済」にした項目が後から
-  壊れることは、セッション単位の検証では構造的に検出できない
-- **`automation` が `human` の項目は溜めて `/plan-ask` で一括確認**。1件ずつ聞かない
+- **全体照合（`/plan-verify`）は `plan:state` が指示したときに走らせる**。`verified` が10増えるごと、
+  およびゴール到達時。「済」にした項目が後から壊れることは、項目単位の検証では検出できない
+- **`verifyBy` が `human` の項目は溜めて `/plan-ask` で一括確認**。1件ずつ聞かない
+- **並列は凍結中**（下の「並列で進める」）
 
 ### 人間（非エンジニア）への聞き方
 
@@ -86,15 +113,15 @@
 ### 未検証の懸念
 
 **この仕組みはまだ実地で一周させていません。** 設計は一次情報で裏付けたが、実際の
-プロジェクトで `/plan-init` から `/checkout` まで回した経験はゼロです。下記は机上の想定で、
+プロジェクトで `/plan-init` から `/release` まで回した経験はゼロです。下記は机上の想定で、
 外れる可能性があります。**使ってみて違ったら、その場でここを書き換えてください。**
 
-- **完了判定役が、作った側の報告に引きずられないか `[曖昧]`。** 「見てはいけないもの」を
-  指示で禁じているだけで、強制はできていない。同じセッション内で呼ぶ限り、判定役が
-  会話の流れを察してしまう余地が残る
+- **判定役が、作った側の報告に引きずられないか `[曖昧]`。** 「見てはいけないもの」を
+  指示で禁じているだけで、強制はできていない。`adversary` は `isolation: worktree` を既定に
+  して会話を察する余地を減らしているが、完全には切れない
 - **`verify` を「人間がたどれる手順」として書き続けられるか `[曖昧]`。** 1項目目は書けても、
   30項目目で「テストが通る」に崩れていく可能性がある。崩れたら検証全体が空洞化する。
-  **`verify` の中身の質は CI で検査できない**（空でないことしか見ていない）
+  **`verify` の中身の質は CI で検査できない**（書き方の下限しか見ていない）
 - **項目が増えたとき `docs/plan.json` を読むコストがコンテキストを圧迫しないか `[曖昧]`。**
   200項目規模で毎セッション全文を読むのは重い。必要なら「未着手の先頭だけ抜き出す」等の
   読み方を足す
@@ -102,48 +129,29 @@
   デグレ検出の層が消える。回らないなら頻度ではなく手順を見直すこと
 - **複数 AI が同時に `docs/plan.json` を編集するときの排他制御は一次情報になく `[曖昧]`。**
   書き込みを「末尾追記」と「自分の項目の `status` 1個」に絞って回避しているが、未確認
+- **`verified-guard.sh` の判定は素朴 `[曖昧]`。** 編集内容に現れた id を全部見るため、
+  既に `verified` の行を含む大きな書き換えでも発火しうる（そのときは記録があるので通る）
 - **3層（CI・別 AI・人間）をすり抜ける失敗は残る。** 今は動くが作りが脆い、という類。
-  潰す手段は公式にもない `[曖昧]`。見つけたら `docs/neglected-log.md` に記録し、
+  潰す手段は公式にもない `[曖昧]`。見つけたら `pnpm run gate:record` で記録し、
   ゴール到達時の振り返りに回す
 
 ## 並列で進める
 
-**既定は逐次（1セッション1項目）です。** 独立した項目が複数あり、ユーザーがまとめて進めたいと
-言ったときだけ並列にします。**同時にやってよいかの判定は自作、実行は公式機能に任せます**
-（根拠は `docs/decisions.md`「15.」）。
+**いまは凍結中です。逐次（1セッション1項目）だけを使ってください。**
 
-1. **同時にやってよいかを判定する** — `dependsOn` が互いを指さず、かつ `files` が1つも
-   重ならない組だけ。判定は `src/plan.ts` の `canRunInParallel(a, b)`。**作業場所を分けても
-   `main` へマージする時点で衝突するため、ファイルの重複は必ず見る**
-2. **作業場所を分ける** — 同時に動かすものは別々の worktree に入れる。同じディレクトリで2つ
-   動かすと、片方の編集がもう片方の検査結果を汚す。サブエージェントなら `Agent` ツールの引数に
-   `isolation: "worktree"`、常にそうさせたいなら `.claude/agents/*.md` のフロントマターに
-   `isolation: worktree` を1行、自分が入るなら `EnterWorktree` / `ExitWorktree`
-3. **同時に走らせる** — `Workflow` ツールの `parallel()`。**ユーザーが明示的に頼んだときだけ
-   呼ぶ**（一度に大量のサブエージェントを起動するため）
+止めている理由は、同時にやってよいかの判定（`src/plan.ts` の `canRunInParallel`）が
+**`dependsOn` と `files` しか見ていない**ためです。ファイルが重ならなくても、同じスキーマ・
+外部 API・環境変数・生成物を両方が書き換えれば壊れます。`pnpm run plan:parallel` は
+組を挙げますが、先頭に凍結の断りを出します。
 
-```js
-export const meta = {
-  name: 'plan-parallel',
-  description: 'docs/plan.json の独立した項目を同時に実装する',
-}; // meta に変数・関数呼び出しは書けない。スクリプトは TypeScript ではなく素の JavaScript
+**凍結を解く条件**（コアフローが一周してから）:
 
-const ITEMS = ['T002', 'T009']; // canRunInParallel が true を返した組だけを書く
-const results = await parallel(
-  ITEMS.map(
-    (id) => () =>
-      agent(`docs/plan.json の ${id} を実装する。AGENTS.md に従うこと`, {
-        isolation: 'worktree', // 作業場所を分ける
-      }),
-  ),
-);
-return { results }; // 失敗した項目は null になる。使う前に .filter(Boolean)
-```
+1. 計画に共有資源（スキーマ・外部 API・環境変数・生成物）の宣言を足す
+2. `canRunInParallel` がそれも見るようにする
+3. 並列中の項目・ブランチ・worktree の状態管理を足す
 
-- **`main` へのマージは1つずつ。** 並列で走らせても取り込みは順番に行い、衝突したら後から
-  マージする側で解消する
-- **`Workflow` と worktree のツールは Claude Code 側の機能で、Codex からは使えない** `[曖昧]`
-  （Codex 側の同等機能は未確認）。Codex では逐次で1項目ずつ進める
+解いた後の手順は `docs/decisions.md`「15.」に残してあります。`Workflow` と worktree の
+ツールは Claude Code 側の機能で、**Codex からは使えません** `[曖昧]`。
 
 ## 失敗と放置の記録
 
@@ -156,10 +164,18 @@ return { results }; // 失敗した項目は null になる。使う前に .filt
   読まず `failure-reviewer` サブエージェントに委譲する
 - **進み具合は `pnpm run plan:progress` で見る。** 週次で知らせる Routine は作ったが、
   通知が手元に届かず、ユーザー判断で取り下げた（いまは無効。経緯は `docs/decisions.md`「23.」）
-- **対応を見送ったことは `docs/neglected-log.md` に書く。** `docs/test-policy.md` の
-  Gate に触れたが破らなかったとき（ヒヤリハット）に書く。日時・触れたGate・対象箇所を
-  書き、理由は書かない（読み手が実際に確認しに行く設計のため）。大計画のゴール
-  （問題がなければ即リリースできる状態）に到達したときだけ読み、リリース前の振り返りに使う
+- **対応を見送ったことは `pnpm run gate:record` で書く。** `docs/test-policy.md` の
+  Gate に触れたが破らなかったとき（ヒヤリハット）、および 081〜100 で今回直さないと決めたとき。
+
+  ```bash
+  pnpm run gate:record -- 087 BACKLOG "scripts/plan-cli.mjs" "毎回ビルドが走る"
+  ```
+
+  日時・触れたGate・対象箇所が入り、`docs/neglected-log.md` に追記されます。理由は書きません
+  （読み手が実際に確認しに行く設計のため）。読むのは `plan:state` が
+  `NEGLECT_REVIEW_REQUIRED` を返したときだけで、リリース前の振り返りに使います。
+  `.claude/hooks/neglect-check.sh` は**書き忘れの最終検出**であって安全装置ではありません
+  （会話に語が現れなければ素通りします）
 
 ## 根拠の記録
 
@@ -181,6 +197,20 @@ pnpm run build    # tsc で dist/ に出力
 pnpm run format   # Prettier で整形
 ```
 
+計画まわり（`docs/plan.json` があるときだけ意味を持ちます）。
+
+```bash
+pnpm run plan:state      # いまどの工程にいるか。ここから始める
+pnpm run plan:next       # 次に着手する1件（全部終わった／詰まった／壊れたを区別して返す）
+pnpm run plan:start T011 # 作業範囲を T011 の files に固定する（解除は plan:stop）
+pnpm run plan:progress   # 進み具合。合計は数えて出す
+pnpm run plan:doctor     # 循環依存・行き止まり・消えた番号を検出する
+pnpm run plan:next-id    # 追記する番号
+pnpm run plan:verdict    # 完了判定の記録（checker / adversary）
+pnpm run gate:record     # 見送った問題を放置台帳へ
+pnpm run release:check   # 公開してよいかをコマンドに決めさせる
+```
+
 ## コーディング規約
 
 - **型**: `strict` 前提。`any` は使わない
@@ -197,8 +227,15 @@ pnpm run format   # Prettier で整形
 
 ## テストで見つけた問題への対処
 
-テスト・レビュー・手動確認で不具合や懸念点を見つけたら、`docs/test-policy.md` の
-重大度ゲート手順に従ってください。`pnpm run check`／`pnpm run build` とは別に必要な手順です。
+`docs/test-policy.md` の Gate 表（001〜100）が正本です。**使う場面は2つに分かれます。**
+
+| 場面                                 | 手順              | 対象         |
+| ------------------------------------ | ----------------- | ------------ |
+| 開発中に問題を1件見つけた            | `/issue-triage`   | その問題だけ |
+| ゴールに到達し、公開してよいか決める | `/release-review` | 製品全体     |
+
+`pnpm run check`／`pnpm run build` とは別に必要な手順です。**項目の完了を妨げるのは
+Gate 001〜080 に新しい FAIL / UNKNOWN が出たときだけ**で、それ以外は記録して先へ進みます。
 
 ## やってはいけないこと
 
@@ -214,7 +251,14 @@ pnpm run format   # Prettier で整形
 - **`CLAUDE.md` に「AGENTS.md に従うこと」と文章で書いても機能しない。** `@` から始まるパス記法だけが読み込みを発生させる
 - **`Explore` と `Plan` のサブエージェントは `CLAUDE.md`（＝このファイル）を読まない。** この2つに守らせたい制約は、委譲するときのプロンプトに書き直すこと
 - **worktree に入ってもフックの `${CLAUDE_PROJECT_DIR}` はメインのチェックアウトを指したまま。** worktree 側のパスが必要なフックは、標準入力 JSON の `cwd` フィールドを読む
-- **`.claude/` 配下（skills・agents・hooks）は Codex から見えない。** 両ツールに守らせたい指示は `AGENTS.md` に書く
+- **`.claude/` 配下（skills・agents・hooks）は Codex から見えない。** 両ツールに守らせたい指示は `AGENTS.md` に書く。
+  フックで守っている関門（作業範囲・完了判定）は Codex では効かないので、**Codex 側は
+  `pnpm run plan:doctor` / `plan:state` / `release:check` を自分で叩いて代用する**
+- **`node -e` の中でトップレベル `return` は書けない**（`SyntaxError: Illegal return statement`）。
+  フックの中で早期リターンを使いたいときは関数で包む
+- **雛形に `docs/plan.json` を同梱しない。** 同梱すると、複製した直後に `/plan-init` が
+  「既に存在する」と拒み、`plan:next` は「着手できる項目なし」を返して工程が始まらない
+  （`src/plan.file.test.ts` が同梱されていないことを検査している）
 
 ## 指示ファイルの構成
 

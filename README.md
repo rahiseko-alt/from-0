@@ -15,15 +15,16 @@ Claude Code と Codex で同じリポジトリを扱うための、**公式準�
 | `CLAUDE.md`                  | `@AGENTS.md` の import 1行のみ。ポインタに徹する                                 |
 | `.claude/settings.json`      | Claude Code のチーム共有設定（権限・フック）                                     |
 | `.claude/hooks/`             | フックのスクリプト。自動整形・型検査・引継ぎ                                     |
-| `.claude/skills/`            | スキル。`/checkin` `/checkout` `/handoff`                                        |
-| `.claude/agents/`            | サブエージェント。`failure-reviewer`（失敗台帳の整理専用）                       |
+| `.claude/skills/`            | スキル。工程ごとの手順（`/checkin` `/plan-init` `/checkout` `/release` ほか）    |
+| `.claude/agents/`            | サブエージェント。`completion-checker`（なぞる役）`adversary`（壊す役）ほか      |
 | `.mcp.json`                  | MCP サーバの定義（初期状態は空）                                                 |
 | `.worktreeinclude`           | worktree 作成時にコピーする gitignore 済みファイル                               |
 | `.gitignore`                 | Node/TS・秘密情報・OS に加え、エージェントのローカルファイル                     |
 | `.gitattributes`             | 台帳ファイルの union merge 設定                                                  |
 | `docs/decisions.md`          | 各項目の根拠。公式由来か選択の結果かを区別した記録                               |
 | `docs/handoff.md`            | セッション間の引継ぎ。`AGENTS.md` が import している                             |
-| `docs/test-policy.md`        | テストで見つけた問題を重大度順に処理するためのゲート手順                         |
+| `docs/plan.example.json`     | 全体計画の書き方の見本（`/plan-init` が作る `docs/plan.json` の形）              |
+| `docs/test-policy.md`        | Gate 001〜100。問題の仕分けと、公開前の確認の正本                                |
 | `docs/failure-action-log.md` | 失敗行動台帳。行動（結果ではない）を書きっぱなしでよく、条件を満たすまで読まない |
 | `docs/neglected-log.md`      | 放置台帳。大計画のゴール到達時だけ読む                                           |
 
@@ -67,17 +68,21 @@ Include 側はコマンド・既定と違うコード規約・テスト方法・
 
 そのため、守られないと困るものは指示ではなく仕組み側に置いています。
 
-| 守りたいこと                   | 仕組み                                                          |
-| ------------------------------ | --------------------------------------------------------------- |
-| Node のバージョン              | `.npmrc` の `engine-strict` で install が失敗する               |
-| 整形が適用されること           | PostToolUse フックが編集直後に Prettier を実行                  |
-| 型が壊れていないこと           | PostToolUse フックが編集後に `tsc` を非同期実行し、失敗だけ返す |
-| 依存が入っていること           | SessionStart フックが `pnpm install` を実行                     |
-| 引継ぎが読まれること           | `AGENTS.md` の `@docs/handoff.md` import。trust に依存しない    |
-| 引継ぎが書かれること           | Stop フックが1セッションに1回、未記録の変更があれば更新を求める |
-| 秘密情報を読ませない           | `.claude/settings.json` の `permissions.deny`                   |
-| 生成物とロックファイルの手編集 | 同上（`dist/` と `pnpm-lock.yaml` を deny）                     |
-| CI 通過とレビュー経由の変更    | GitHub の Ruleset（`main` 直 push 禁止・CI 必須）               |
+| 守りたいこと                   | 仕組み                                                                 |
+| ------------------------------ | ---------------------------------------------------------------------- |
+| Node のバージョン              | `.npmrc` の `engine-strict` で install が失敗する                      |
+| 整形が適用されること           | PostToolUse フックが編集直後に Prettier を実行                         |
+| 型が壊れていないこと           | PostToolUse フックが編集後に `tsc` を非同期実行し、失敗だけ返す        |
+| 依存が入っていること           | SessionStart フックが `pnpm install` を実行                            |
+| 引継ぎが読まれること           | `AGENTS.md` の `@docs/handoff.md` import。trust に依存しない           |
+| 引継ぎが書かれること           | Stop フックが1セッションに1回、未記録の変更があれば更新を求める        |
+| 秘密情報を読ませない           | `.claude/settings.json` の `permissions.deny`                          |
+| 生成物とロックファイルの手編集 | 同上（`dist/` と `pnpm-lock.yaml` を deny）                            |
+| CI 通過とレビュー経由の変更    | GitHub の Ruleset（`main` 直 push 禁止・CI 必須）                      |
+| 今どの工程かを思い出させる     | SessionStart フックが `plan:state` の結果を差し込む                    |
+| 1セッション1項目・範囲外禁止   | PreToolUse フック `scope-guard.sh` が範囲外の編集を止める              |
+| 検証なしの完了マーク           | PreToolUse フック `verified-guard.sh` が記録の無い `verified` を止める |
+| 証拠のない「公開してよい」     | `pnpm run release:check`（`docs/release-review.json` を機械判定）      |
 
 `AGENTS.md` の「`strict` 前提・`any` を使わない」は指示にすぎません。型検査をフックにすることで、
 違反は必ず次のターンで Claude に差し戻されます。
@@ -91,7 +96,9 @@ Include 側はコマンド・既定と違うコード規約・テスト方法・
 
 ## 拡張ポイント
 
-Claude Code には他にも拡張機構があります。スキルは `/checkin` `/checkout` `/handoff` の3つが入っていて、残りは**意図的に空**です。必要になった時点で追加してください。
+Claude Code には他にも拡張機構があります。スキルは工程に対応する9つ（`/checkin` `/plan-init`
+`/plan-ask` `/plan-verify` `/handoff` `/checkout` `/issue-triage` `/release-review` `/release`）が
+入っています。それ以外は**意図的に空**です。必要になった時点で追加してください。
 
 | 機構                                                                               | 置き場所                 | 用途                                           |
 | ---------------------------------------------------------------------------------- | ------------------------ | ---------------------------------------------- |
@@ -176,8 +183,12 @@ GitHub の **Use this template** から新しいリポジトリを作り、以�
 - [ ] GitHub 側の設定（Ruleset で `main` 保護と CI 必須、Allow auto-merge、head ブランチ自動削除）
 - [ ] 各自が一度 `claude` を対話モードで起動し、**workspace trust を承認する**
       （承認するまで `permissions.allow` は効かず、毎回確認を求められます）
-- [ ] アプリの起動手順が決まったら `/run-skill-generator` を1回実行し、生成された
-      `.claude/skills/run-<名前>/` をコミットする（`/run` と `/verify` が起動方法を再発見せずに済む）
+- [ ] `/plan-init` でゴールを1文で決め、項目に分ける（`docs/plan.json` が作られます）
+
+**`docs/plan.json` は雛形に入っていません。** 完成済みの計画を同梱すると、複製した直後に
+`/plan-init` が「既に存在する」と拒み、`pnpm run plan:next` が「着手できる項目なし」を返して
+工程が始まりません。from-0 自身が使った計画は `docs/history/plan.from-0.json` にあります
+（記録用。検証の対象外です）。
 
 スタックを変える場合（Next.js を入れる等）は `package.json` / `tsconfig.json` /
 `.github/workflows/ci.yml` を差し替えてください。指示ファイルの構成はそのまま使えます。
